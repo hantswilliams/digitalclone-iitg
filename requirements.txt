@@ -2,3 +2,5 @@ python-dotenv
 gradio_client
 gradio
 git+https://github.com/huggingface/transformers.git
+pyht
+simpleaudio
