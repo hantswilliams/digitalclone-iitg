@@ -2,8 +2,18 @@
 
 ## Winners thus far: 
 - For audio:
+    - **https://play.ht/**
+        - Really good, high sounding 
+        - Also sounds like BARK but on steroids, really good American voices 
+        - Fast audio generation, easy to use 
+        - Has API service 
+        - Has voice cloning - have not tried yet 
     - **BARK** 
         - currently not cloning voice, but is able to generate audio from text that sounds very realistic, alot better then the COQUI AI model with TTS and new `xtts_v2` model - which is nice and quick, sounds like the person, but doesn't have the same fluctations in tone and voice that BARK has.
+    - **Descript**
+        - this would be enterprise, paid feature 
+        - https://www.descript.com/enterprise 
+        - might be around 30-50 per month per user, so would have limited number of accounts here
 - For video: 
     - **SadTalker**
         - Parameters for a 6 second audio clip with image - approx 
