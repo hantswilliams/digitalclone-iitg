@@ -12,7 +12,7 @@ bark_api = os.getenv("HUGGING")
 client = Client(
     src = "https://hants-bark.hf.space/", 
     hf_token = bark_api,
-    output_dir="/Users/hantswilliams/Development/python/digitalclone-iitg/tests/gradio_outputs/"
+    output_dir="/Users/hantswilliams/Development/python/digitalclone-iitg/tests/gradio_bark/"
 )
 
 result = client.predict(
