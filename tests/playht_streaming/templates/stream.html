@@ -26,7 +26,7 @@
         document.getElementById('start-stream').addEventListener('click', function() {
             var text = document.getElementById('text').value;
             var voice = document.getElementById('voice').value;
-            var eventSource = new EventSource('/stream-data?text=' + encodeURIComponent(text) + '&voice=' + encodeURIComponent(voice));
+            var eventSource = new EventSource('/audio/stream-data?text=' + encodeURIComponent(text) + '&voice=' + encodeURIComponent(voice));
             eventSource.onmessage = function(e) {
                 // Check if the data starts with 'data: '
                 if (e.data.startsWith('data: ')) {
@@ -48,7 +48,7 @@
                                 document.getElementById('final-url-container').innerHTML = 'Final URL: <a href="' + data.url + '" target="_blank">' + data.url + '</a>';
                             }
                             // Send data to /stream-data/response as a POST request
-                            fetch('/stream-data/response', {
+                            fetch('/audio/stream-data/response', {
                                 method: 'POST',
                                 headers: {
                                     'Content-Type': 'application/json'

@@ -36,7 +36,7 @@
                             {% if row.data_type == "Text" %}
                             <div class="flex flex-row">
                                 <div class="m-1">
-                                    <form hx-post="/view1/audio/input" hx-target="#modal-container" hx-swap="innerHTML">
+                                    <form hx-post="/audio/create" hx-target="#modal-container" hx-swap="innerHTML">
                                         <input type="hidden" name="row_id" value="{{ row.id }}">
                                         <input type="submit" value="+ Audio" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full">
                                     </form>

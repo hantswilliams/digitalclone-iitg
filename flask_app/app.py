@@ -288,5 +288,85 @@ def data():
     else:
         return render_template('view1.html', data=data)
 
+
+
+
+
+
+
+
+
+@app.route('/audio/create', methods=['GET', 'POST'])
+def stream_page():
+    row_id = request.form['row_id']
+    print('row_id:', row_id)
+    session = get_session()
+    data_entry = session.query(DataEntry).filter(DataEntry.id == row_id).first()
+    print('Data entry: ', data_entry)
+    return render_template(
+        'playht/create_audio_modal.html',
+        data=data_entry
+    )
+
+@app.route('/audio/stream-data')
+def stream():
+
+    text = request.args.get('text', 'Default text')  # Fallback to default text if not provided
+    voice = request.args.get('voice', 'Default voice')  # Fallback to default voice if not provided
+
+    voices = {
+        "male_matt": "s3://voice-cloning-zero-shot/09b5c0cc-a8f4-4450-aaab-3657b9965d0b/podcaster/manifest.json",
+        "female_nichole": "s3://voice-cloning-zero-shot/7c38b588-14e8-42b9-bacd-e03d1d673c3c/nicole/manifest.json"
+    }
+
+    def event_stream():
+        url = "https://api.play.ht/api/v2/tts"
+        payload = {
+            "text": f"{str(text)}",      # "Haunts",
+            "voice": f"{voices[voice]}",     # "s3://voice-cloning-zero-shot/09b5c0cc-a8f4-4450-aaab-3657b9965d0b/podcaster/manifest.json",
+            "output_format": "mp3",
+            "voice_engine": "PlayHT2.0"
+        }
+        headers = {
+            "accept": "text/event-stream",
+            "content-type": "application/json",
+            "Authorization": "Bearer " + apikey,
+            "X-USER-ID": userid
+        }
+        with requests.post(url, stream=True, headers=headers, json=payload) as response:
+            for line in response.iter_lines():
+                if line:
+                    decoded_line = line.decode('utf-8')
+                    yield f"data: {decoded_line}\n\n"
+
+    return Response(
+        stream_with_context(event_stream()),
+        content_type='text/event-stream'
+        )
+
+@app.route('/audio/stream-data/response', methods=['POST'])
+def stream_response():
+    body = request.get_json()
+    row_id = body['row_id'] 
+    audio_url = body['playht']['url']
+    voice = body['voice']
+    print(f'FROM SERVER: row_id: {row_id}, audio_url: {audio_url}, voice: {voice}')
+    session = get_session()
+    try:
+        new_audio = Audio(audio_url=audio_url, voice=voice, data_entry_id=row_id)
+        session.add(new_audio)
+        session.commit()
+        session.close()
+    except:
+        session.rollback()
+        raise
+    print('audio saved to database')
+    return 'success - audio saved to database'
+
+
+
+
+
+
 if __name__ == '__main__':
     app.run(debug=True)

@@ -13,11 +13,11 @@ apikey = os.getenv("PLAYHT_SECRET")
 
 app = Flask(__name__)
 
-@app.route('/')
+@app.route('/audio/create')
 def stream_page():
     return render_template('stream.html')
 
-@app.route('/stream-data')
+@app.route('/audio/stream-data')
 def stream():
 
     text = request.args.get('text', 'Default text')  # Fallback to default text if not provided
@@ -48,11 +48,11 @@ def stream():
         content_type='text/event-stream'
         )
 
-@app.route('/stream-data/response', methods=['POST'])
+@app.route('/audio/stream-data/response', methods=['POST'])
 def stream_response():
     body = request.get_json()
     print('Response from server: ', body)
-    return body
+    return render_template('stream.html', server_body=body)
 
 if __name__ == '__main__':
     app.run(debug=True)
