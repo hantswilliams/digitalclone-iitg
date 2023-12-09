@@ -34,43 +34,46 @@
     </div>
 
 
-    <div class="container mx-auto p-4">
-        <h1 class="text-xl font-bold"> Version 2 Inputs: Text, Audio, and Photo</h1>
-        <p class="text-blue-500"> Involves generation of audio, and video based on text and photo</p>
-        <form hx-post="/view2/submit" hx-target="#modal" hx-swap="outerHTML" id="data-form" class="bg-white p-4 shadow rounded-lg">
-            <div class="mb-4">
-                <label for="text-type" class="block text-gray-700 text-sm font-bold mb-2">Select Text:</label>
-                <select name="text_type" id="text-type" class="shadow border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                    {% for text, url in text_data %}
-                        <option value="{{ text }}">{{ text }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <!-- now create another question for select speaker, which should be Male1, or Female1 -->
-            <div class="mb-4">
-                <label for="speaker-type" class="block text-gray-700 text-sm font-bold mb-2">Select Speaker:</label>
-                <select name="speaker_type" id="speaker-type" class="shadow border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                   <option value="male_matt">Male (Matt)</option>
-                   <option value="female_nichole">Female (Nicole)</option>
-                </select>
-            </div>
-            <div class="mb-4">
-                <label for="audio-type" class="block text-gray-700 text-sm font-bold mb-2">Select Photo:</label>
-                <select name="audio_type" id="audio-type" class="shadow border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                    {% for text, url in photo_data %}
-                        <option value="{{ url }}">{{ text }} - {{ url }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <!-- turn off button -->
-            <button type="submit" class="bg-zinc-500 hover:bg-zinc-500 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" disabled>
-                Submit (disabled)
-            </button>
-        </form>
-        <!-- Modal -->
-        <div id="modal" class="hidden">
-        </div>
+    <!-- Audio Preview -->
+    <div id="audio-preview" class="mb-4">
+        <label class="block text-gray-700 text-sm font-bold mb-2">Audio Preview:</label>
+        <audio id="audio-player" controls></audio>
+    </div>
+
+    <!-- Image Preview -->
+    <div id="image-preview" class="mb-4">
+        <label class="block text-gray-700 text-sm font-bold mb-2">Image Preview:</label>
+        <img id="image-viewer" src="" alt="Selected Image" style="max-width: 100%; height: auto;"/>
     </div>
 
 
+    {% block scripts %}
+        <script>
+            // Function to update audio preview
+            function updateAudioPreview() {
+                var audioUrl = document.getElementById('audio_selection').value;
+                var audioPlayer = document.getElementById('audio-player');
+                audioPlayer.src = audioUrl;
+            }
+
+            // Function to update image preview
+            function updateImagePreview() {
+                var imageUrl = document.getElementById('photo_selection').value;
+                var imageViewer = document.getElementById('image-viewer');
+                imageViewer.src = imageUrl;
+            }
+
+            // Event listeners for selection changes
+            document.getElementById('audio_selection').addEventListener('change', updateAudioPreview);
+            document.getElementById('photo_selection').addEventListener('change', updateImagePreview);
+
+            // Initial update on page load
+            updateAudioPreview();
+            updateImagePreview();
+
+        </script>
+    {% endblock %}
+
+
 {% endblock %}
+

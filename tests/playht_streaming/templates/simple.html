@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Event Stream</title>
+</head>
+<body>
+    <div id="event-stream"></div>
+    <script type="text/javascript">
+        var eventSource = new EventSource('/stream-data');
+        eventSource.onmessage = function(e) {
+            document.getElementById('event-stream').innerHTML += e.data + '<br>';
+        };
+    </script>
+</body>
+</html>

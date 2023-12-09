@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, Response, stream_with_context
 from  sqlalchemy.sql.expression import func
 from werkzeug.utils import secure_filename
 from db_model.db import DataEntry, Audio, get_session, init_db  # Import from db.py
@@ -7,6 +7,8 @@ from utils.playht import generate_voice
 from utils.sadtalker import create_video
 import json
 import pandas as pd
+import os
+import requests
 
 app = Flask(__name__)
 app.secret_key = 'super secret key'
@@ -14,6 +16,8 @@ app.secret_key = 'super secret key'
 init_db() # Initialize the database
 
 s3_client = s3 # Initialize the s3 client
+userid = os.getenv("PLAYHT_USERID")
+apikey = os.getenv("PLAYHT_SECRET")
 BUCKET_NAME = 'iitg-mvp' # Replace with your bucket name
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
@@ -109,7 +113,7 @@ def submit_audio_file():
     # audio_url = f"https://{BUCKET_NAME}.s3.amazonaws.com/{audio_url}"
     ## save to database in Audio table, providing the row_id as the data_entry_id
     try:
-        new_audio = Audio(audio_url=playht_audio_url, data_entry_id=row_id)
+        new_audio = Audio(audio_url=playht_audio_url, voice=speaker_type, data_entry_id=row_id)
         session.add(new_audio)
         session.commit()
         session.close()
@@ -258,6 +262,12 @@ def view3():
         'view3/view3.html'
         , s3_video_urls=s3_video_urls
     )
+
+
+
+
+
+
 
 
 @app.route('/data/view1', methods=['GET'])

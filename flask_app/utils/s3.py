@@ -58,7 +58,10 @@ def s3_get_image_sounds():
     bucket_name='iitg-mvp'
 
     urls = get_s3_image_urls(bucket_name)
-    urls.pop(0) # Remove the first item from the list (it's the folder name)
+    try:
+        urls.pop(0) # Remove the first item from the list (it's the folder name)
+    except:
+        pass
 
     # Create a img_urls list with the image urls that end in .png, .jpg, or .jpeg
     image_urls = [url for url in urls if url.endswith(('.png', '.jpg', '.jpeg'))]
