@@ -1,5 +1,8 @@
 # Digitalclone-iitg
 
+## To do: 
+- Need to add in .mp4 to one of the tables 
+
 ## Winners thus far: 
 - For audio:
     - **https://play.ht/**

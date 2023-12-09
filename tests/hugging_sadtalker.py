@@ -2,41 +2,46 @@ from gradio_client import Client
 from dotenv import load_dotenv
 import os
 import base64
-import io 
-import requests
+import requests 
 
 load_dotenv()
 
 api_key = os.getenv("HUGGING")
 
+
+
+
 def encode_file_to_base64(filepath):
     with open(filepath, "rb") as file:
         return base64.b64encode(file.read()).decode('utf-8')
     
-# Define your functions here
-def getbase64image(image):
-    buffered = io.BytesIO()
-    image.save(buffered, format="PNG")
-    return base64.b64encode(buffered.getvalue()).decode('utf-8')
+def encode_url_to_base64(url):
+    response = requests.get(url)
+    return base64.b64encode(response.content).decode('utf-8')
+
 
 # Encode your image and audio files
 image_base64 = encode_file_to_base64("tests/test_content/hants-open.png")
 audio_base64 = encode_file_to_base64("tests/playht_outputs/playHT_ex1.wav")
 
-## save the base64 string to a file
-with open("tests/gradio_sadtalker/image_base64.txt", "w") as f:
-    f.write(image_base64)
+# Encode your image and audio files from a URL
+image_base64 = encode_url_to_base64("https://github.com/hantswilliams/digitalclone-iitg/blob/6c19631d76ea74a37e85011bb24f963c28d7be0d/tests/test_content/hants-open.png" + "?raw=true")
+audio_base64 = encode_url_to_base64("https://github.com/hantswilliams/digitalclone-iitg/blob/973f55e45baff8f1b06a388890aac029ac7f36ad/tests/playht_outputs/playHT_ex1.wav" + "?raw=true")
 
-## save the base64 string to a file
-with open("tests/gradio_sadtalker/audio_base64.txt", "w") as f:
-    f.write(audio_base64)
+# ## save the base64 string to a file
+# with open("tests/gradio_sadtalker/image_base64.txt", "w") as f:
+#     f.write(image_base64)
 
-# get the first 25 charcters of the base64 string
-image_base64[:100]
-# get the last 25 characters of the base64 string
-image_base64[-25:]
-# get the first 100 characters of the base64 string
-audio_base64[:100]
+# ## save the base64 string to a file
+# with open("tests/gradio_sadtalker/audio_base64.txt", "w") as f:
+#     f.write(audio_base64)
+
+# # get the first 25 charcters of the base64 string
+# image_base64[:100]
+# # get the last 25 characters of the base64 string
+# image_base64[-25:]
+# # get the first 100 characters of the base64 string
+# audio_base64[:100]
 
 client = Client(
     src = "https://hants-sadtalker.hf.space/", 
@@ -44,12 +49,14 @@ client = Client(
     output_dir="/Users/hantswilliams/Development/python/digitalclone-iitg/tests/gradio_sadtalker/"
 )
 
+## can use predict or client.submit
+
 result = client.predict(
-        None,
-        None,
-        image_base64,
-		audio_base64,
-		"resize",
+        None, # this is for the input from the form for image (user upload, not used here)  
+        None, # this is for the input from the form for the audio (user upload, not used here)
+        image_base64, # this is the base64 string for the image, used here
+		audio_base64, # this is the base64 string for the audio, used here
+		"resize", # this is the image processing method, used here (crop, resize, etc...)
 		True,
 		True,
 		3,
@@ -75,59 +82,3 @@ print(result)
 ## get job status
 
 
-
-
-import base64
-import requests
-import json
-
-def encode_file_to_base64(filepath):
-    with open(filepath, "rb") as file:
-        return base64.b64encode(file.read()).decode('utf-8')
-
-# Encode your image and audio files
-image_base64 = encode_file_to_base64("tests/test_content/hants-open.png")
-audio_base64 = encode_file_to_base64("tests/playht_outputs/playHT_ex1.wav")
-
-# Prepare the JSON payload
-payload = {
-    "data": [
-        '',
-        '',   
-        image_base64,
-        audio_base64,
-        "crop",  # Example
-        True,   # Still mode 
-        True, # Face enhancer 
-        3, # batch size 
-        "512", # face model resolution 
-        0, # pose style 
-        "facevid2vid", # face rendered component 
-        1, # expression scale 
-        False, # reference video 
-        None, # file name 
-        "pose", # reference video 
-        False, # idle animation 
-        5, # represent video length
-        True, # use eye blink,
-    ]
-}
-
-# API endpoint
-api_url = "https://huggingface.co/spaces/hants/SadTalker"
-
-# Headers
-headers = {
-    "authorization" : f"Bearer {api_key}",
-}
-
-# Make the POST request
-response = requests.post(api_url, json=payload, headers=headers)
-
-# Check the response
-if response.status_code == 200:
-    print("Successfully sent the files.")
-    response_data = response.json()
-    # Process the response data as needed
-else:
-    print("Failed to send the files. Status code:", response.status_code)
