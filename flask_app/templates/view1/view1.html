@@ -1,0 +1,36 @@
+{% extends "index.html" %}
+
+{% block content %}
+
+    <!-- Hidden div for automatic loading -->
+    <div hx-get="/data/view1" hx-trigger="load" hx-target="#data-table" hx-swap="innerHTML" class="hidden"></div>
+
+    <h1 class="text-3xl font-bold mb-5"> Base Content</h1>
+
+    <!-- Button to open modal -->
+    <button hx-get="/view1/form" hx-target="#modal-container" hx-swap="innerHTML" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+        + Text
+    </button>
+
+    <!-- Button to open modal for image submission -->
+    <button hx-get="/view1/image_upload_form" hx-target="#modal-container" hx-swap="innerHTML" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+        + Image
+    </button>
+
+    <!-- Container for modal -->
+    <div id="modal-container">
+        <!-- Modal content will be loaded here -->
+    </div>
+
+    <button hx-get="/data/view1" hx-target="#data-table" hx-swap="innerHTML" class="mt-5 mb-5 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full">
+        Refresh/Get Data
+    </button>
+    
+    <div id="data-table">
+        {% include 'view1/data_table.html' %}
+    </div>
+
+
+
+
+{% endblock %}

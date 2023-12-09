@@ -1,0 +1,76 @@
+{% extends "index.html" %}
+
+{% block content %}
+
+    <h1 class="text-3xl font-bold"> Video Create </h1>
+
+    <div class="container mx-auto p-4 mb-20">
+        <h1 class="text-xl font-bold"> Version 1 Inputs: Audio and Photo</h1>
+        <p class="text-blue-500"> Involves generation of video from audio and photo</p>
+        <form hx-post="/view2/submit" hx-target="#modal" hx-swap="outerHTML" id="data-form" class="bg-white p-4 shadow rounded-lg">
+            <div class="mb-4">
+                <label for="audio_selection" class="block text-gray-700 text-sm font-bold mb-2">Select Text:</label>
+                <select name="audio_selection" id="audio_selection" class="shadow border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    {% for row in data_dict %}
+                        <option value="{{ row.audio_url }}">{{ row.text_content }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-4">
+                <label for="photo_selection" class="block text-gray-700 text-sm font-bold mb-2">Select Photo:</label>
+                <select name="photo_selection" id="photo_selection" class="shadow border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    {% for text, url in photo_data %}
+                        <option value="{{ url }}">{{ text }} - {{ url }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                Submit
+            </button>
+        </form>
+        <!-- Modal -->
+        <div id="modal" class="hidden">
+        </div>
+    </div>
+
+
+    <div class="container mx-auto p-4">
+        <h1 class="text-xl font-bold"> Version 2 Inputs: Text, Audio, and Photo</h1>
+        <p class="text-blue-500"> Involves generation of audio, and video based on text and photo</p>
+        <form hx-post="/view2/submit" hx-target="#modal" hx-swap="outerHTML" id="data-form" class="bg-white p-4 shadow rounded-lg">
+            <div class="mb-4">
+                <label for="text-type" class="block text-gray-700 text-sm font-bold mb-2">Select Text:</label>
+                <select name="text_type" id="text-type" class="shadow border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    {% for text, url in text_data %}
+                        <option value="{{ text }}">{{ text }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <!-- now create another question for select speaker, which should be Male1, or Female1 -->
+            <div class="mb-4">
+                <label for="speaker-type" class="block text-gray-700 text-sm font-bold mb-2">Select Speaker:</label>
+                <select name="speaker_type" id="speaker-type" class="shadow border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                   <option value="male_matt">Male (Matt)</option>
+                   <option value="female_nichole">Female (Nicole)</option>
+                </select>
+            </div>
+            <div class="mb-4">
+                <label for="audio-type" class="block text-gray-700 text-sm font-bold mb-2">Select Photo:</label>
+                <select name="audio_type" id="audio-type" class="shadow border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    {% for text, url in photo_data %}
+                        <option value="{{ url }}">{{ text }} - {{ url }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <!-- turn off button -->
+            <button type="submit" class="bg-zinc-500 hover:bg-zinc-500 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" disabled>
+                Submit (disabled)
+            </button>
+        </form>
+        <!-- Modal -->
+        <div id="modal" class="hidden">
+        </div>
+    </div>
+
+
+{% endblock %}

@@ -1,0 +1,77 @@
+
+<div class="mt-8 flow-root">
+    <div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+        <div class="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+            <table class="min-w-full divide-y divide-gray-300">
+                <tr>
+                    <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">ID</th>
+                    <!-- <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">User ID</th> -->
+                    <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Data Type</th>
+                    <!-- <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Created At</th>
+                    <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Updated At</th> -->
+                    <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Content Preview</th>
+                    <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Data URL</th>
+                    <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Actions</th>
+                </tr>
+                {% for row in data %}
+                <tr>
+                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{ row.id }}</td>
+                    <!-- <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{ row.user_id }}</td> -->
+                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{ row.data_type }}</td>
+                    <!-- <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{ row.created_at }}</td>
+                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{ row.updated_at }}</td> -->
+                    <!-- if row.data_type is equal to Photo, then display the image, otherwise display the text -->
+                    {% if row.data_type == "Photo" %}
+                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500"> <img src="{{ row.data_url }}" alt="Image" width="35" height="35"> </td>
+                    {% else %} 
+                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{ row.text_content }}</td>
+                    {% endif %}
+                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500"><a href="{{ row.data_url }}">Download</a></td>
+                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        
+                        <!-- create a div row for the two buttons  -->
+                        <div class="flex flex-row">
+                          
+                            <!-- if row.data_type is Text, display a button that will send the user to a diff page -->
+                            {% if row.data_type == "Text" %}
+                            <div class="flex flex-row">
+                                <div class="m-1">
+                                    <form hx-post="/view1/audio/input" hx-target="#modal-container" hx-swap="innerHTML">
+                                        <input type="hidden" name="row_id" value="{{ row.id }}">
+                                        <input type="submit" value="+ Audio" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full">
+                                    </form>
+                                </div>
+                                <div class="m-1">
+                                    <form hx-post="/view1/audio/table" hx-target="#modal-container" hx-swap="innerHTML">
+                                        <input type="hidden" name="row_id" value="{{ row.id }}">
+                                        <input type="submit" value="Audio Table" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full">
+                                    </form>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <div class="m-1">
+                                {% if row.data_type == "Photo" %}
+                                    <form hx-post="/view1/image/delete" hx-target="#data-table">
+                                        <input type="hidden" name="data_url" value="{{ row.data_url }}">
+                                        <input type="submit" value="Delete" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-full">
+                                    </form>
+                                {% elif row.data_type == "Text" %}
+                                    <form hx-post="/view1/text/delete" hx-target="#data-table">
+                                        <input type="hidden" name="row_id" value="{{ row.id }}">
+                                        <input type="submit" value="Delete" class="bg-red-300 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-full">
+                                    </form>
+                                {% endif %} 
+                            </div>
+
+                        </div>
+
+
+
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+</div>
