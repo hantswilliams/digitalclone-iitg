@@ -31,6 +31,18 @@ response_df = pd.DataFrame(response.json())
 response_df.to_csv('tests/playht_outputs/voices.csv')
 
 
+## get cloned voices 
+url = "https://api.play.ht/api/v2/cloned-voices"
+headers = {
+    "accept": "application/json",
+    "Authorization": "Bearer " + apikey,
+    "X-USER-ID": userid
+}
+response = requests.get(url, headers=headers)
+print(response.text)
+
+
+
 ########################################################################
 #########################CREATE SOME SOUNDS#############################
 ########################################################################

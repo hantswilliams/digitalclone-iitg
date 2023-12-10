@@ -39,7 +39,8 @@
         <div class="mt-3 text-center">
           <form hx-post="/delete/db" hx-target="#my-delete-db-modal" hx-swap="outerHTML" class="relative">
               <div class="mb-4">
-                  <label for="confirm_delete" class="block text-gray-700 text-sm font-bold mb-2">Confirm Data Deltion:</label>
+                  <label for="confirm_delete" class="block text-gray-700 text-sm font-bold mb-2">Confirm Data Deletion:</label>
+                  <p class="text-sm text-gray-500 mb-4">This will delete all data in the database. This action cannot be undone.</p>
                   <input type="text" name="confirm_delete" id="confirm_delete"
                       class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" 
                       placeholder="Type 'delete' to confirm">

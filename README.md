@@ -1,7 +1,10 @@
 # Digitalclone-iitg
 
 ## To do: 
-- Need to add in .mp4 to one of the tables 
+- Need to add some polling or some way of status updates for the sadface API component 
+
+## Done:
+- Need to add in .mp4 to one of the tables (DONE)
 
 ## Winners thus far: 
 - For audio:

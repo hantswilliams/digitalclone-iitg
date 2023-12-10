@@ -392,7 +392,8 @@ def stream():
 
     voices = {
         "male_matt": "s3://voice-cloning-zero-shot/09b5c0cc-a8f4-4450-aaab-3657b9965d0b/podcaster/manifest.json",
-        "female_nichole": "s3://voice-cloning-zero-shot/7c38b588-14e8-42b9-bacd-e03d1d673c3c/nicole/manifest.json"
+        "female_nichole": "s3://voice-cloning-zero-shot/7c38b588-14e8-42b9-bacd-e03d1d673c3c/nicole/manifest.json",
+        "male_hants": "s3://voice-cloning-zero-shot/fdbb6c51-284f-4ffb-8820-56d3f5513862/hants-v1/manifest.json",
     }
 
     def event_stream():
@@ -451,7 +452,7 @@ def stream_response():
 def delete_index():
     return render_template('view1/delete_db_modal.html')
 
-@app.route('/delete/db', methods=['GET', 'POST'])
+@app.route('/delete/db', methods=['GET', 'POST']) # note this does not currently delete anything from s3 bucket, only deletes from database
 def delete_db():
     session = get_session()
     try:
