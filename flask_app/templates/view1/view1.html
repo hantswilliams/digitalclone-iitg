@@ -3,18 +3,33 @@
 {% block content %}
 
     <!-- Hidden div for automatic loading -->
-    <div hx-get="/data/view1" hx-trigger="load" hx-target="#data-table" hx-swap="innerHTML" class="hidden"></div>
+    <div hx-get="/data/view1" hx-trigger="load" hx-target="#data-table" class="hidden"></div>
 
     <h1 class="text-3xl font-bold mb-5"> Base Content</h1>
 
     <!-- Button to open modal -->
-    <button hx-get="/view1/form" hx-target="#modal-container" hx-swap="innerHTML" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
-        + Text
+    <button hx-get="/view1/form" hx-target="#modal-container" hx-swap="innerHTML" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+        + Text / Script
     </button>
 
     <!-- Button to open modal for image submission -->
     <button hx-get="/view1/image_upload_form" hx-target="#modal-container" hx-swap="innerHTML" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
         + Image
+    </button>
+
+    <!-- Button to open modal for project -->
+    <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+        + Project
+    </button>
+
+    <!-- Button to open modal for new voice -->
+    <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+        + Clone Voice
+    </button>
+
+    <!-- Button to delete everything -->
+    <button hx-get="view1/delete/db" hx-target="#modal-container" hx-swap="innerHTML" class="bg-red-300 hover:bg-red-500 text-white font-bold py-2 px-4 rounded">
+        + Delete DB
     </button>
 
     <!-- Container for modal -->

@@ -1,0 +1,54 @@
+<script>
+
+    document.body.addEventListener('click', function (event) {
+        if (event.target.id === 'cancel-btn') {
+            const modal = document.getElementById('my-delete-db-modal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+    });
+
+    // to enable to escape key to close the modal
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+            const modal = document.getElementById('my-delete-db-modal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+    });
+  
+    document.getElementById('post-btn').addEventListener('click', function (event) {
+        const confirmInput = document.getElementById('confirm_delete').value;
+        if (confirmInput !== 'delete') {
+            event.preventDefault(); // Prevent form submission
+            alert('Error: You must type "delete" to confirm.'); // Show error message
+        } else {
+            const modal = document.getElementById('my-delete-db-modal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+    });
+  
+  </script>
+  
+  <div class="fixed inset-0 bg-red-600 bg-opacity-50 overflow-y-auto h-full w-full" id="my-delete-db-modal">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3 text-center">
+          <form hx-post="/delete/db" hx-target="#my-delete-db-modal" hx-swap="outerHTML" class="relative">
+              <div class="mb-4">
+                  <label for="confirm_delete" class="block text-gray-700 text-sm font-bold mb-2">Confirm Data Deltion:</label>
+                  <input type="text" name="confirm_delete" id="confirm_delete"
+                      class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" 
+                      placeholder="Type 'delete' to confirm">
+              </div>
+              <div class="flex-shrink-0">
+                <button id="cancel-btn" type="button" class="inline-flex items-center rounded-md bg-blue-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Cancel</button>
+                <button id="post-btn" type="submit" class="inline-flex items-center rounded-md bg-blue-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Delete All Data</button>
+              </div>
+          </form>
+        </div>
+    </div>
+  </div>

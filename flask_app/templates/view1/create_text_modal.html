@@ -1,12 +1,32 @@
 <script>
+
   document.body.addEventListener('click', function (event) {
-      if (event.target.id === 'ok-btn') {
+      if (event.target.id === 'cancel-btn') {
           const modal = document.getElementById('my-modal-text-output');
           if (modal) {
               modal.style.display = 'none';
           }
       }
   });
+
+  // to enable the enter key to submit the form
+  document.getElementById('text_input').addEventListener('keydown', function(event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault(); // Prevent default to avoid new line in textarea
+            document.getElementById('post-btn').click(); // Trigger the Post button click
+        }
+    });
+
+  // to enable to escape key to close the modal
+  document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') {
+          const modal = document.getElementById('my-modal-text-output');
+          if (modal) {
+              modal.style.display = 'none';
+          }
+      }
+  });
+
 </script>
 
 <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full" id="my-modal-text-output">
@@ -23,8 +43,8 @@
               </div>
             </div>
             <div class="flex-shrink-0">
-              <button id="ok-btn" type="button" class="inline-flex items-center rounded-md bg-indigo-200 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Cancel</button>
-              <button id="ok-btn" type="submit" class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Post</button>
+              <button id="cancel-btn" type="button" class="inline-flex items-center rounded-md bg-blue-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Cancel</button>
+              <button id="post-btn" type="submit" class="inline-flex items-center rounded-md bg-blue-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Post</button>
             </div>
         </form>
       </div>

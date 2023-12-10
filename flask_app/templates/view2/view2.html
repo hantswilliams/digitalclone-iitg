@@ -12,7 +12,7 @@
                 <label for="audio_selection" class="block text-gray-700 text-sm font-bold mb-2">Select Audio (Text):</label>
                 <select name="audio_selection" id="audio_selection" class="shadow border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                     {% for row in data_dict %}
-                        <option value="{{ row.audio_url }}">{{ row.text_content }}</option>
+                        <option value="{{ row.audio_url }}">{{ row.audio_text }}</option>
                     {% endfor %}
                 </select>
             </div>

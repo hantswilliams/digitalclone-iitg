@@ -1,0 +1,54 @@
+<script>
+
+    document.body.addEventListener('click', function (event) {
+        if (event.target.id === 'cancel-btn') {
+            const modal = document.getElementById('my-modal-text-edit');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+    });
+  
+    // to enable the enter key to submit the form
+    document.getElementById('text_input').addEventListener('keydown', function(event) {
+          if (event.key === 'Enter' && !event.shiftKey) {
+              event.preventDefault(); // Prevent default to avoid new line in textarea
+              document.getElementById('post-btn').click(); // Trigger the Post button click
+          }
+      });
+  
+    // to enable to escape key to close the modal
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+            const modal = document.getElementById('my-modal-text-edit');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+    });
+  
+  </script>
+
+<div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full" id="my-modal-text-edit">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3 text-center">
+          <form hx-post="/view1/text/update" hx-target="#my-modal-text-edit" hx-swap="outerHTML" class="relative">
+            <div class="border-b border-gray-200 focus-within:border-indigo-600">
+              <!-- <label for="text_input" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Edit Text</label> -->
+              <label for="text_input" class="sr-only">Edit Text</label>
+                <input type="hidden" name="row_id" value="{{ data.id }}">
+                <textarea rows="3" name="text_input" id="text_input" class="block p-2.5 w-full text-sm text-gray-900 bg-gray-200 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="{{ data.text_content }}">{{ data.text_content }}</textarea>
+                <!-- <textarea rows="3" name="text_input" id="text_input" class="block w-full resize-none border-0 border-b border-transparent p-0 pb-2 text-gray-900 placeholder:text-gray-400 focus:border-indigo-600 focus:ring-0 sm:text-sm sm:leading-6" placeholder="{{ data.text_content }}">{{ data.text_content }}</textarea> -->
+            </div>
+            <div class="mt-4">
+                <button type="button" id="cancel-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    Cancel
+                </button>
+                <button type="submit" id="post-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    Post
+                </button>
+            </div>
+            </form>
+        </div>
+    </div>
+</div>

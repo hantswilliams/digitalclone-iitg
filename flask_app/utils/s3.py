@@ -73,8 +73,13 @@ def s3_get_image_sounds():
 ## Function that deletes a file from an S3 bucket, takes the file name as an argument
 def s3_delete_file(file_name):
     bucket_name='iitg-mvp'
-    s3.delete_object(Bucket=bucket_name, Key=file_name)
-    print(f"Deleted {file_name} from {bucket_name}")
+    try:
+        s3.delete_object(Bucket=bucket_name, Key=file_name)
+        print(f"Deleted {file_name} from {bucket_name}")
+        return True
+    except Exception as e:
+        print(f"Error: {e}")
+        return False
 
 
 ## Function to get all .mp4 files from an S3 bucket

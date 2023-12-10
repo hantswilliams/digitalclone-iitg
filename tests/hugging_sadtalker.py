@@ -25,8 +25,8 @@ image_base64 = encode_file_to_base64("tests/test_content/hants-open.png")
 audio_base64 = encode_file_to_base64("tests/playht_outputs/playHT_ex1.wav")
 
 # Encode your image and audio files from a URL
-image_base64 = encode_url_to_base64("https://github.com/hantswilliams/digitalclone-iitg/blob/6c19631d76ea74a37e85011bb24f963c28d7be0d/tests/test_content/hants-open.png" + "?raw=true")
-audio_base64 = encode_url_to_base64("https://github.com/hantswilliams/digitalclone-iitg/blob/973f55e45baff8f1b06a388890aac029ac7f36ad/tests/playht_outputs/playHT_ex1.wav" + "?raw=true")
+image_base64 = encode_url_to_base64("https://iitg-mvp.s3.amazonaws.com/sadtalker_input.png")    #("https://github.com/hantswilliams/digitalclone-iitg/blob/6c19631d76ea74a37e85011bb24f963c28d7be0d/tests/test_content/hants-open.png" + "?raw=true")
+audio_base64 = encode_url_to_base64("https://github.com/hantswilliams/digitalclone-iitg/blob/973f55e45baff8f1b06a388890aac029ac7f36ad/tests/playht_outputs/playHT_ex1.wav" + "?raw=true")   # ("https://peregrine-results.s3.amazonaws.com/pigeon/Dj2kJIPvRdPZfUdVmK_0.mp3") 
 
 # ## save the base64 string to a file
 # with open("tests/gradio_sadtalker/image_base64.txt", "w") as f:

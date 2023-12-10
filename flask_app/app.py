@@ -46,7 +46,9 @@ def audio_table():
         # add to data_dict
         data_dict.append({
             'text_content': data_entry.text_content,
-            'audio_url': audio.audio_url
+            'audio_url': audio.audio_url,
+            'voice': audio.voice,
+            'audio_text': audio.audio_text,
         })
         # print(f"Text Content: {data_entry.text_content}, Audio URL: {audio.audio_url}")
     print('data_dict:', data_dict)
@@ -83,10 +85,50 @@ def submit_audio():
         raise
     session.close()
     print('data entry added to database')
-    return render_template('view1/submitted_modal.html', data=text_input)
+    data = {'status': '200', 
+            'message': 'Text successfully added',
+            'text_input': text_input}
+    formatted_data = json.dumps(data, indent=4).lstrip()
+    return render_template('view1/submitted_modal.html', data=formatted_data)
 
-@app.route('/view1/audio/input', methods=['GET', 'POST'])
-def create_audio():
+@app.route('/view1/text/edit', methods=['GET', 'POST'])
+def edit_text():
+    row_id = request.form['row_id']
+    print('row_id:', row_id)
+    session = get_session()
+    data_entry = session.query(DataEntry).filter(DataEntry.id == row_id).first()
+    print('Data entry: ', data_entry)
+    data_entry.text_content = data_entry.text_content.strip()
+    return render_template(
+        'view1/edit_text_modal.html',
+        data=data_entry
+        )
+
+@app.route('/view1/text/update', methods=['POST'])
+def update_text():
+    row_id = request.form['row_id']
+    text_input = request.form['text_input']
+    print('row_id:', row_id)
+    print('text inputted:', text_input)
+    session = get_session()
+    data_entry = session.query(DataEntry).filter(DataEntry.id == row_id).first()
+    data_entry.text_content = text_input
+    try:
+        session.commit()
+    except:
+        session.rollback()
+        raise
+    session.close()
+    print('data entry updated in database')
+    data = {'status': '200', 
+            'message': 'Text successfully updated',
+            'text_input': text_input}
+    formatted_data = json.dumps(data, indent=4).lstrip()
+    return render_template('view1/submitted_modal.html', data=formatted_data)
+
+
+# @app.route('/view1/audio/input', methods=['GET', 'POST'])
+# def create_audio():
     row_id = request.form['row_id']
     print('row_id:', row_id)
     session = get_session()
@@ -97,31 +139,39 @@ def create_audio():
         data=data_entry
         )
 
-@app.route('/view1/audio/create', methods=['POST'])
-def submit_audio_file():
-    row_id = request.form['row_id']
-    speaker_type = request.form['speaker_type']
-    print('Server received: row_id:', row_id, 'speaker_type:', speaker_type)
-    session = get_session()
-    data_entry = session.query(DataEntry).filter(DataEntry.id == row_id).first()
-    text_content = data_entry.text_content
-    playht_audio_url = generate_voice(speaker_type, text_content)  ## send to playht
-    print('playht_audio_url:', playht_audio_url)
-    # ## upload to s3
-    # audio_url = s3_upload_sound(row_id, playht_audio_url)
-    # ## add s3 url path to audio_url
-    # audio_url = f"https://{BUCKET_NAME}.s3.amazonaws.com/{audio_url}"
-    ## save to database in Audio table, providing the row_id as the data_entry_id
-    try:
-        new_audio = Audio(audio_url=playht_audio_url, voice=speaker_type, data_entry_id=row_id)
-        session.add(new_audio)
-        session.commit()
-        session.close()
-    except:
-        session.rollback()
-        raise
-    print('audio saved to database')
-    return render_template('view1/submitted_modal.html', data=playht_audio_url)
+# @app.route('/view1/audio/create', methods=['POST'])
+# def submit_audio_file():
+#     print("RUNNNING SUBMIT AUDIO FILE")
+#     row_id = request.form['row_id']
+#     speaker_type = request.form['speaker_type']
+#     print('Server received: row_id:', row_id, 'speaker_type:', speaker_type)
+#     session = get_session()
+#     data_entry = session.query(DataEntry).filter(DataEntry.id == row_id).first()
+#     text_content = data_entry.text_content
+#     playht_audio_url = generate_voice(speaker_type, text_content)  ## send to playht
+#     print('SERVER MESSAGE: Text Content for Processing:', text_content)
+#     print('playht_audio_url:', playht_audio_url)
+#     # ## upload to s3
+#     # audio_url = s3_upload_sound(row_id, playht_audio_url)
+#     # ## add s3 url path to audio_url
+#     # audio_url = f"https://{BUCKET_NAME}.s3.amazonaws.com/{audio_url}"
+#     ## save to database in Audio table, providing the row_id as the data_entry_id
+#     try:
+#         new_audio = Audio(
+#             audio_url=playht_audio_url, 
+#             voice=speaker_type, 
+#             audio_text=f"{str(text_content)}",
+#             data_entry_id=row_id
+#             )
+#         session.add(new_audio)
+#         session.commit()
+#         session.close()
+#     except:
+#         session.rollback()
+#         raise
+#     print('audio saved to database')
+#     return render_template('view1/submitted_modal.html', data=playht_audio_url)
+
 
 @app.route('/view1/image/upload', methods=['POST'])
 def upload_file():
@@ -157,10 +207,12 @@ def upload_file():
         print('file uploaded successfully to database and s3')
         data = {
             'status': '200', 
-            'message': 'File successfully uploaded',
+            'message': 
+            'File successfully uploaded',
             'file_url': file_url
             }
-        return render_template('view1/submitted_modal.html', data=data)
+        formatted_data = json.dumps(data, indent=4).lstrip()
+        return render_template('view1/submitted_modal.html', data=formatted_data)
     
     else:
         data = {'status': '400', 'message': 'File type not allowed'}
@@ -187,14 +239,25 @@ def delete_text():
             'message': 'Text successfully deleted',
             'row_id': row_id
         })
-    return render_template('view1/view1.html')
+    data = {
+            'status': '200', 
+            'message': 'Text successfully deleted',
+            'row_id': row_id
+        }
+    formatted_data = json.dumps(data, indent=4).lstrip()
+    return render_template('view1/submitted_modal.html', data=formatted_data)
 
 @app.route('/view1/image/delete', methods=['POST'])
 def delete_file():
     file_url = request.form['data_url']
     file_name = file_url.split('/')[-1]
-    print('file_url:', file_name)
-    s3_client.delete_object(Bucket=BUCKET_NAME, Key=file_name)
+    print('file_url to delete:', file_name)
+    try:
+        s3_client.delete_object(Bucket=BUCKET_NAME, Key=file_name)
+        print(f"Deleted {file_name} from {BUCKET_NAME}")
+    except Exception as e:
+        print(f"Error: {e}")
+        return None
     session = get_session()
     try:
         session.query(DataEntry).filter(DataEntry.data_url == file_url).delete()
@@ -208,7 +271,13 @@ def delete_file():
             'message': 'File successfully deleted',
             'file_url': file_url
         })
-    return render_template('view1/view1.html')
+    data = {
+            'status': '200', 
+            'message': 'File successfully deleted',
+            'file_url': file_url
+        }
+    formatted_data = json.dumps(data, indent=4).lstrip()
+    return render_template('view1/submitted_modal.html', data=formatted_data)
 
 
 
@@ -228,7 +297,9 @@ def view2():
         # add to data_dict
         data_dict.append({
             'text_content': data_entry.text_content,
-            'audio_url': audio.audio_url
+            'audio_url': audio.audio_url,
+            'voice': audio.voice,
+            'audio_text': audio.audio_text,
         })
         # print(f"Text Content: {data_entry.text_content}, Audio URL: {audio.audio_url}")
     print('data_dict:', data_dict)
@@ -255,7 +326,9 @@ def submit():
     ## create video 
     results = create_video(photo_selection, audio_selection)
 
-    return render_template('view2/submitted_modal.html', data=results)
+    return f'ok: {results}'
+
+    # return render_template('view2/submitted_modal.html', data=results)
 
 @app.route('/view3')
 def view3():
@@ -353,10 +426,16 @@ def stream_response():
     row_id = body['row_id'] 
     audio_url = body['playht']['url']
     voice = body['voice']
+    text_content = body['text']
     print(f'FROM SERVER: row_id: {row_id}, audio_url: {audio_url}, voice: {voice}')
     session = get_session()
     try:
-        new_audio = Audio(audio_url=audio_url, voice=voice, data_entry_id=row_id)
+        new_audio = Audio(
+            audio_url=audio_url, 
+            voice=voice, 
+            audio_text=f"{str(text_content)}",
+            data_entry_id=row_id
+        )
         session.add(new_audio)
         session.commit()
         session.close()
@@ -368,8 +447,26 @@ def stream_response():
 
 
 
+@app.route('/view1/delete/db', methods=['GET', 'POST'])
+def delete_index():
+    return render_template('view1/delete_db_modal.html')
 
-
+@app.route('/delete/db', methods=['GET', 'POST'])
+def delete_db():
+    session = get_session()
+    try:
+        session.query(DataEntry).delete()
+        session.query(Audio).delete()
+        session.commit()
+        session.close()
+    except:
+        session.rollback()
+        raise
+    print('database deleted')
+    data = {'status': '200', 'message': 'Database successfully deleted'}
+    formatted_data = json.dumps(data, indent=4).lstrip()
+    return render_template('view1/deleted_modal.html', data=formatted_data)
+    
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=5005)

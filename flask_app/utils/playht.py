@@ -25,7 +25,7 @@ def generate_voice(selected_voice, selected_text):
     payload = {
         "text": f"{str(selected_text)}",
         "voice": f"{voices[selected_voice]}",
-        "output_format": "mp3",
+        "output_format": "wav",
         "voice_engine": "PlayHT2.0"
     }
     headers = {
