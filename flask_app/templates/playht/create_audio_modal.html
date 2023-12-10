@@ -18,8 +18,12 @@
                 <h1 class="text-3xl font-bold mb-5"> Create Audio </h1>
 
                 <!-- display the text_content that was passed -->
-                <p class="text-xs"> RowID: {{ data.id }} </p>
-                <p class="text-xs"> Text Content: {{ data.text_content }} </p>
+                <p class="text-xs mb-4"> RowID: {{ data.id }} </p>
+                <p class="text-xs"> Text Content to Process: 
+                    <p class="text-sm font-bold text-green-500">
+                    {{ data.text_content }} 
+                    </p>
+                </p>
 
                 <input type="hidden" name="row_id" id="row_id" value="{{ data.id }}">
                 <input type="hidden" name="text" id="text" value="{{ data.text_content }}">
@@ -33,7 +37,7 @@
                 </div>
                 <div class="items-center px-4 py-3">
                     <button type="button" id="start-stream" class="px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        Create (Request to PlayHT)
+                        Create Audio
                     </button>
                 </div>
                 <button id="ok-btn" class="absolute top-0 right-0 mt-4 mr-4 text-3xl font-bold" type="button">&times;</button>
@@ -108,7 +112,18 @@
                                     // if final_url is not null, update the HTML element with the URL
                                     if (data.url) {
                                         // If finalUrl is not null, update the HTML element with the URL
-                                        document.getElementById('final-url-container').innerHTML = '<a href="' + data.url + '" target="_blank">' + data.url + '</a>';
+                                        // document.getElementById('final-url-container').innerHTML = '<a href="' + data.url + '" target="_blank">' + data.url + '</a>';
+                                        document.getElementById('final-url-container').innerHTML = `
+                                            <div class="">
+                                                <div class="flex">
+                                                    <div class="ml-1 flex-1 md:flex md:justify-between">
+                                                        <audio controls autoplay>
+                                                            <source src="${data.url}" type="audio/mpeg">
+                                                            Your browser does not support the audio element.
+                                                        </audio>
+                                                    </div>
+                                                </div>
+                                            </div>`;
                                     }
                                     // Send data to /stream-data/response as a POST request
                                     fetch('/audio/stream-data/response', {
@@ -136,18 +151,18 @@
                             } catch(err) {
                                 console.error('Error parsing JSON:', err);
                                 console.log('Error data:', e.data);
-                                eventSource.close(); // Close the stream on error
-                                streamDataDiv.classList.add('hidden'); // Hide the div
-                                document.getElementById('loading-bar').classList.add('hidden'); // Hide the loading bar
+                                // eventSource.close(); // Close the stream on error
+                                // streamDataDiv.classList.add('hidden'); // Hide the div
+                                // document.getElementById('loading-bar').classList.add('hidden'); // Hide the loading bar
                             }
                         }
                     };
             
                     eventSource.onerror = function(e) {
                         console.error('EventSource failed:', e);
-                        eventSource.close(); // Close the stream on error
-                        streamDataDiv.classList.add('hidden'); // Hide the div
-                        document.getElementById('loading-bar').classList.add('hidden'); // Hide the loading bar
+                        // eventSource.close(); // Close the stream on error
+                        // streamDataDiv.classList.add('hidden'); // Hide the div
+                        // document.getElementById('loading-bar').classList.add('hidden'); // Hide the loading bar
                     };
                 });
             </script>
@@ -157,3 +172,7 @@
         </div>
     </div>
 </div>
+
+
+
+

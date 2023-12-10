@@ -173,7 +173,10 @@ def delete_text():
     print('row_id:', row_id)
     session = get_session()
     try:
+        ## delete from DataEntry
         session.query(DataEntry).filter(DataEntry.id == row_id).delete()
+        ## delete any associated audio
+        session.query(Audio).filter(Audio.data_entry_id == row_id).delete()
         session.commit()
     except:
         session.rollback()
