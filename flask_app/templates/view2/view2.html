@@ -12,7 +12,8 @@
                 <label for="audio_selection" class="block text-gray-700 text-sm font-bold mb-2">Select Audio (Text):</label>
                 <select name="audio_selection" id="audio_selection" class="shadow border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                     {% for row in data_dict %}
-                        <option value="{{ row.audio_url }}">{{ row.audio_text }}</option>
+                        <!-- <option value="{{ row.audio_url }}">{{ row.audio_text }}</option> -->
+                        <option value="{{ row.audio_url }}||{{ row.audio_text }}">{{ row.audio_text }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -29,8 +30,7 @@
             </button>
         </form>
         <!-- Modal -->
-        <div id="modal" class="hidden">
-        </div>
+        <div id="modal" class="hidden"></div>
     </div>
 
 
@@ -52,6 +52,8 @@
             // Function to update audio preview
             function updateAudioPreview() {
                 var audioUrl = document.getElementById('audio_selection').value;
+                var audioUrl = audioUrl.split('||')[0]; // need to parse out since added in two values that are || separated
+                console.log('audioUrl: ', audioUrl);
                 var audioPlayer = document.getElementById('audio-player');
                 audioPlayer.src = audioUrl;
             }

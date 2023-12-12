@@ -1,10 +1,14 @@
 # Digitalclone-iitg
 
 ## To do: 
-- Need to add some polling or some way of status updates for the sadface API component 
+- Add in PPT create
+- Should also create Project component 
+    - idea should be that you should then be able to associate different media types with a project
+- Should create separate table for Text and Photo - that way have separate tables for Text, Photo, Video, Audio, and in future PPT
 
 ## Done:
 - Need to add in .mp4 to one of the tables (DONE)
+- Need to add some polling or some way of status updates for the sadface API component (DONE)
 
 ## Winners thus far: 
 - For audio:

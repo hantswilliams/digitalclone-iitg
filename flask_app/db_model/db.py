@@ -28,10 +28,20 @@ class Audio(Base):
     voice = Column(String)
     created_at = Column(DateTime, default=datetime.datetime.now())
     updated_at = Column(DateTime, default=datetime.datetime.now(), onupdate=datetime.datetime.now())
-
     # Relationship back to DataEntry
     data_entry = relationship("DataEntry", backref=backref("audios", lazy=True))
 
+class Video(Base):
+    __tablename__ = 'video'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    job_id = Column(String)
+    audio_selection = Column(String)
+    audio_row_id = Column(Integer)
+    text_selection = Column(String)
+    text_row_id = Column(Integer)
+    photo_selection = Column(String)
+    photo_row_id = Column(Integer)
+    video_url = Column(String)
 
 # Create an engine that stores data in the local directory's sqlite file
 engine = create_engine('sqlite://///Users/hantswilliams/Development/python/digitalclone-iitg/flask_app/dev.db')

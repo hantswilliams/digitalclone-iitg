@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import os
 import base64
 import requests 
+from time import sleep
 
 load_dotenv()
 
@@ -72,13 +73,49 @@ result = client.predict(
 		True,
 )
 
-
-
 print(result)
 
 ## get working jobs
 # https://huggingface.co/spaces/hants/SadTalker/jobs?status=running
 
 ## get job status
+
+
+job = client.submit(
+        None, # this is for the input from the form for image (user upload, not used here)  
+        None, # this is for the input from the form for the audio (user upload, not used here)
+        image_base64, # this is the base64 string for the image, used here
+		audio_base64, # this is the base64 string for the audio, used here
+		"resize", # this is the image processing method, used here (crop, resize, etc...)
+		True,
+		True,
+		3,
+		512, # this needs to be a NUBMER ! 
+		0,
+		"facevid2vid",
+		1,
+		False,
+		None,
+		"pose",
+		False,
+		5,
+		True,
+)
+
+job.status()
+job.status().code
+
+# print job status until it is complete
+while str(job.status().code) == "Status.PROCESSING":
+	job_status = str(job.status().code)
+	print(job_status)
+	if job_status == "Status.FINISHED":
+		break
+	sleep(1)
+     
+
+
+
+
 
 

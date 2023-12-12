@@ -8,14 +8,36 @@
             }
         }
     });
+
+    // Function to check for invalid characters
+    function containsInvalidCharacters(text) {
+        return text.includes('||');
+    }
+
+    function validateAndSubmit(event) {
+      console.log("validateAndSubmit called"); // Add this line for debugging
+      const textInput = document.getElementById('text_input').value;
+      if (containsInvalidCharacters(textInput)) {
+          alert('Input contains invalid characters: ||');
+          event.preventDefault(); // Prevent the form from submitting
+      } 
+    }
+
+    // Attach the validation function to the Post button's click event
+    document.getElementById('post-btn').addEventListener('click', validateAndSubmit);
   
     // to enable the enter key to submit the form
     document.getElementById('text_input').addEventListener('keydown', function(event) {
-          if (event.key === 'Enter' && !event.shiftKey) {
-              event.preventDefault(); // Prevent default to avoid new line in textarea
-              document.getElementById('post-btn').click(); // Trigger the Post button click
-          }
-      });
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault(); // Prevent default to avoid new line in textarea
+            const textInput = document.getElementById('text_input').value;
+            if (containsInvalidCharacters(textInput)) {
+                alert('Input contains invalid characters: ||');
+            } else {
+                document.getElementById('post-btn').click(); // Trigger the Post button click
+            }
+        }
+    });
   
     // to enable to escape key to close the modal
     document.addEventListener('keydown', function (event) {

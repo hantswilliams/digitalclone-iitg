@@ -1,21 +1,68 @@
 {% extends "index.html" %}
 
 {% block content %}
-    <h1 class="text-3xl font-bold"> Outputs </h1>
 
-    <!-- create a gallery of the s3 .mp4 urls from s3_video_urls -->
     <div class="container mx-auto p-4 mb-20">
         <h1 class="text-xl font-bold"> Video Outputs </h1>
-        <p class="text-blue-500"> Involves generation of video from audio and photo</p>
-        <div class="grid grid-cols-3 gap-4">
-            {% for url in s3_video_urls %}
-                <div class="bg-white p-4 shadow rounded-lg">
-                    <video width="320" height="240" controls>
-                        <source src="{{ url }}" type="video/mp4">
-                        Your browser does not support the video tag.
-                    </video>
-                </div>
-            {% endfor %}
-        </div>
+        <p class="text-slate-500"> Involves generation of video from audio and photo</p>
+    
+        <table class="min-w-full divide-y divide-gray-200 mt-4">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Video Preview
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Details and Actions
+                    </th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for row in data %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <video width="200" height="200" controls>
+                                    <source src="{{ row.video_url }}" type="video/mp4">
+                                    Your browser does not support the video tag.
+                                </video>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <dl class="-my-3 divide-y divide-gray-100 px-6 py-4 text-sm leading-6">
+                                <div class="flex justify-between gap-x-4 py-3">
+                                    <dt class="text-gray-500">Text:</dt>
+                                    <dd class="text-gray-700">{{ row.text_selection }}</dd>
+                                </div>
+                                <div class="flex justify-between gap-x-4 py-3">
+                                    <dt class="text-gray-500">Photo:</dt>
+                                    <dd class="text-gray-700"><a href="{{ row.photo_selection }}" class="text-blue-500"> Img Download </a></dd>
+                                </div>
+                                <div class="flex justify-between gap-x-4 py-3">
+                                    <dt class="text-gray-500">Video URL:</dt>
+                                    <dd class="text-gray-700"><a href="{{ row.video_url }}" class="text-blue-500"> Vid Download </a></dd>
+                                </div>
+                                <div class="flex justify-between gap-x-4 py-3">
+                                    <dt class="text-gray-500">Date Created</dt>
+                                    <dd class="text-gray-700"><time datetime="2022-12-13">December 13, 2022</time></dd>
+                                </div>
+                                <div class="flex justify-between gap-x-4 py-3">
+                                    <dt class="text-gray-500">Actions:</dt>
+                                    <dd> 
+                                        <a href="#" class="bg-blue-500 m-4 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                                        Something 1
+                                        </a>
+                                        <a href="#" class="bg-blue-500 m-4 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                                        Something 2
+                                        </a>
+                                    </dd>
+                            </dl>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
 
 {% endblock %}

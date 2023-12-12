@@ -1,14 +1,18 @@
 from flask import Flask, render_template, request, Response, stream_with_context
 from  sqlalchemy.sql.expression import func
 from werkzeug.utils import secure_filename
-from db_model.db import DataEntry, Audio, get_session, init_db  # Import from db.py
-from utils.s3 import s3, s3_get_image_sounds, s3_get_mp4_files
+from db_model.db import DataEntry, Audio, Video, get_session, init_db  # Import from db.py
+from utils.s3 import s3, s3_get_image_sounds, s3_get_mp4_files, s3_upload_video
 from utils.playht import generate_voice
-from utils.sadtalker import create_video
+from utils.sadtalker import create_video, create_video_job
 import json
 import pandas as pd
 import os
 import requests
+import time
+import uuid
+import pickle
+import datetime
 
 app = Flask(__name__)
 app.secret_key = 'super secret key'
@@ -19,6 +23,11 @@ s3_client = s3 # Initialize the s3 client
 userid = os.getenv("PLAYHT_USERID")
 apikey = os.getenv("PLAYHT_SECRET")
 BUCKET_NAME = 'iitg-mvp' # Replace with your bucket name
+
+# Dictionary to store job_id to Gradio job object mapping
+current_jobs = {}
+# Dictionary to store currently job details
+current_job_details = {}
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
@@ -172,7 +181,6 @@ def update_text():
 #     print('audio saved to database')
 #     return render_template('view1/submitted_modal.html', data=playht_audio_url)
 
-
 @app.route('/view1/image/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -217,7 +225,6 @@ def upload_file():
     else:
         data = {'status': '400', 'message': 'File type not allowed'}
         return render_template('view1/submitted_modal.html', data=data)
-
 
 @app.route('/view1/text/delete', methods=['POST'])
 def delete_text():
@@ -279,8 +286,6 @@ def delete_file():
     formatted_data = json.dumps(data, indent=4).lstrip()
     return render_template('view1/submitted_modal.html', data=formatted_data)
 
-
-
 @app.route('/view2', methods=['GET', 'POST'])
 def view2():
     session = get_session()  # Get a new session
@@ -317,34 +322,159 @@ def submit():
     print(request.form)
     # data = json.dumps(request.form)
 
-    audio_selection = request.form['audio_selection']
+    # audio_selection = request.form['audio_selection']
+    audio_text_values = request.form['audio_selection']
+    audio_selection, text_selection = audio_text_values.split('||', 1)
+
     photo_selection = request.form['photo_selection']
 
     print('audio_selection:', audio_selection)
     print('photo_selection:', photo_selection)
 
-    ## create video 
-    results = create_video(photo_selection, audio_selection)
+    job = create_video_job(photo_selection, audio_selection)
+    print('Initial State at Launch:', job.status())
 
-    return f'ok: {results}'
+    job_id = 'job_' + str(uuid.uuid4())[:4]
+    current_jobs[job_id] = job
 
-    # return render_template('view2/submitted_modal.html', data=results)
+    ## get row ID from db audio for the audio_selection
+    session = get_session()
+    audio_row = session.query(Audio).filter(Audio.audio_url == audio_selection).first()
+    audio_row_id = audio_row.data_entry_id
+    text_row_id = audio_row.data_entry_id
+    print('audio_row_id:', audio_row_id)
+
+    ## get row ID from db photo for the photo_selection
+    photo_row = session.query(DataEntry).filter(DataEntry.data_url == photo_selection).first()
+    photo_row_id = photo_row.id
+    print('photo_row_id:', photo_row_id)
+
+    current_job_details[job_id] = {
+        'job_id': job_id,
+        'audio_selection': audio_selection,
+        'audio_row_id': audio_row_id,
+        'text_selection': text_selection,
+        'text_row_id': text_row_id,
+        'photo_selection': photo_selection,
+        'photo_row_id': photo_row_id,
+        'start_time': datetime.datetime.now(),
+    }
+
+    results = {
+        'job_id': job_id,
+        'job_status': job.status().code,
+    }
+    
+    return render_template('view2/submitted_modal.html', data=results)
+
+@app.route('/view2/submit/progress')
+def submit_progress():
+    ## get the job_id from the request
+    print('Current Jobs:', current_jobs)
+    job_id = request.args.get('job_id')
+    passed_job = job_id
+    ## get the job from the current_jobs dictionary
+    passed_job_object = current_jobs[passed_job]
+    ## get the job details from the current_job_details dictionary
+    passed_job_details = current_job_details[passed_job]
+    print('passed_job_details from serverside:', passed_job_details)
+    print('Before generate status():', passed_job_object.status())
+    # print job status until it is complete
+    def generate():
+        while str(passed_job_object.status().code) == "Status.STARTING":
+            job_status = str(passed_job_object.status().code)
+            print('STARTING job_status:', job_status)
+            yield f"data: {job_status}\n\n"
+            time.sleep(1)
+        
+        while str(passed_job_object.status().code) == "Status.PROCESSING":
+            job_status = str(passed_job_object.status().code)
+            print('PROCESSING job_status:', job_status)
+            yield f"data: {job_status}\n\n"
+            time.sleep(1)
+        
+        while str(passed_job_object.status().code) == "Status.FINISHED":
+            job_status = str(passed_job_object.status().code)
+            print('FINISHED job_status:', job_status)
+            yield f"data: {job_status}\n\n"
+            time.sleep(1)
+
+            ## get working directory
+            working_dir = os.getcwd()
+            print('WORKING DIR: ', working_dir)
+
+            ## get the new folder name from the temp_outputs folder
+            folder = os.listdir("./temp_outputs")
+
+            ## get only the folders that exist in the temp_outputs folder
+            folders = [f for f in folder if os.path.isdir(os.path.join("./temp_outputs", f))]
+                
+            ## get the folder name
+            folder_name = folders[0]
+            # print('FOLDER NAME: ', folder_name)
+            
+            ## get the .mp4 file from the folder
+            video_file = os.listdir("./temp_outputs/" + folder_name)[0]
+            
+            ## upload the video file to S3
+            try:
+                video_url = s3_upload_video(video_file, "temp_outputs/" + folder_name + "/" + video_file)
+                print('Succesfully uploaded video from: ', video_url)
+                ## then delete the folder
+                os.system("rm -rf temp_outputs/" + folder_name)
+                print(f"Deleted folder {folder_name}")
+            
+            except Exception as e:
+                print(f"Error: {e}")
+                return None
+            
+            ## save to database in Video table, providing the row_id as the data_entry_id
+            session = get_session()
+            try:
+                new_video = Video(
+                    job_id=job_id,
+                    audio_selection=passed_job_details['audio_selection'],
+                    audio_row_id=passed_job_details['audio_row_id'],
+                    text_selection=passed_job_details['text_selection'],
+                    text_row_id=passed_job_details['text_row_id'],
+                    photo_selection=passed_job_details['photo_selection'],
+                    photo_row_id=passed_job_details['photo_row_id'],
+                    video_url=f'https://{BUCKET_NAME}.s3.amazonaws.com/{video_url}'
+                )
+                session.add(new_video)
+                session.commit()
+                session.close()
+            except:
+                session.rollback()
+                raise
+
+            ## delete the job from the current_jobs dictionary
+            del current_jobs[passed_job]
+            
+        else:
+            job_status = str(passed_job_object.status().code)
+            print('OTHER job_status:', job_status)
+            yield f"data: {job_status}"
+        
+        yield f"data: {job_status}"
+
+
+    return Response(stream_with_context(generate()), mimetype='text/event-stream')
 
 @app.route('/view3')
 def view3():
-    s3_video_urls = s3_get_mp4_files()
-    print('s3_video_urls:', s3_video_urls)
+    ## get videos from video table
+    session = get_session()
+    ## exclude rows with no video_url
+    video_data = session.query(Video).all()
+    session.close()
+    print('video_data:', video_data)
+    # s3_video_urls = s3_get_mp4_files()
+    # print('s3_video_urls:', s3_video_urls)
     return render_template(
-        'view3/view3.html'
-        , s3_video_urls=s3_video_urls
+        'view3/view3.html', 
+        data=video_data
     )
-
-
-
-
-
-
-
 
 @app.route('/data/view1', methods=['GET'])
 def data():
@@ -363,14 +493,6 @@ def data():
         return render_template('view1/data_table.html', data=data)
     else:
         return render_template('view1.html', data=data)
-
-
-
-
-
-
-
-
 
 @app.route('/audio/create', methods=['GET', 'POST'])
 def stream_page():
@@ -446,8 +568,6 @@ def stream_response():
     print('audio saved to database')
     return 'success - audio saved to database'
 
-
-
 @app.route('/view1/delete/db', methods=['GET', 'POST'])
 def delete_index():
     return render_template('view1/delete_db_modal.html')
@@ -467,7 +587,44 @@ def delete_db():
     data = {'status': '200', 'message': 'Database successfully deleted'}
     formatted_data = json.dumps(data, indent=4).lstrip()
     return render_template('view1/deleted_modal.html', data=formatted_data)
-    
+
+@app.route('/view4', methods=['GET', 'POST'])
+def create_powerpoint():
+    session = get_session()
+    video_data = session.query(Video).all()
+    session.close()
+    return render_template(
+        'view4/view4.html', 
+        data=video_data
+    )
+
+# @app.route('/powerpoint/create/submit', methods=['POST'])
+# def create_powerpoint_submit():
+#     slide_title = request.form['slide_title']
+#     slide_body_text = request.form['slide_body']
+#     slide_video = request.form['slide_video']
+#     print('text inputted:', text_input)
+#     session = get_session()
+#     data_entry = DataEntry(
+#         user_id='mvp_001',
+#         data_type='Text', 
+#         text_content=text_input, 
+#         data_url=''
+#     )
+#     try:
+#         session.add(data_entry)
+#         session.commit()
+#     except:
+#         session.rollback()
+#         raise
+#     session.close()
+#     print('data entry added to database')
+#     data = {'status': '200', 
+#             'message': 'Text successfully added',
+#             'text_input': text_input}
+#     formatted_data = json.dumps(data, indent=4).lstrip()
+#     return render_template('powerpoint/submitted_modal.html', data=formatted_data)
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5005)
