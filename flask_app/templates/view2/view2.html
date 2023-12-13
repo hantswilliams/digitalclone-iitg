@@ -13,15 +13,15 @@
                 <select name="audio_selection" id="audio_selection" class="shadow border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                     {% for row in data_dict %}
                         <!-- <option value="{{ row.audio_url }}">{{ row.audio_text }}</option> -->
-                        <option value="{{ row.audio_url }}||{{ row.audio_text }}">{{ row.audio_text }}</option>
+                        <option value="{{ row.audio_url }}||{{ row.audio_text }}">{{ row.audio_text }} ({{ row.voice }})</option>
                     {% endfor %}
                 </select>
             </div>
             <div class="mb-4">
                 <label for="photo_selection" class="block text-gray-700 text-sm font-bold mb-2">Select Photo:</label>
                 <select name="photo_selection" id="photo_selection" class="shadow border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                    {% for text, url in photo_data %}
-                        <option value="{{ url }}">{{ text }} - {{ url }}</option>
+                    {% for row in photo_data %}
+                        <option value="{{ row.photo_url }}">{{ row.photo_description }} - {{ row.photo_url }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -37,7 +37,7 @@
     <!-- Audio Preview -->
     <div id="audio-preview" class="mb-4">
         <label class="block text-gray-700 text-sm font-bold mb-2">Audio Preview:</label>
-        <audio id="audio-player" controls autoplay></audio>
+        <audio id="audio-player" controls></audio>
     </div>
 
     <!-- Image Preview -->

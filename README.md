@@ -1,13 +1,14 @@
 # Digitalclone-iitg
 
 ## To do: 
-- Add in PPT create
+- Should create separate table for Text and Photo - that way have separate tables for Text, Photo, Video, Audio, and in future PPT // partially done, have created db.py tables, but not updated app.py code
 - Should also create Project component 
     - idea should be that you should then be able to associate different media types with a project
-- Should create separate table for Text and Photo - that way have separate tables for Text, Photo, Video, Audio, and in future PPT
+
 
 ## Done:
 - Need to add in .mp4 to one of the tables (DONE)
+- Add in PPT create (DONE)
 - Need to add some polling or some way of status updates for the sadface API component (DONE)
 
 ## Winners thus far: 

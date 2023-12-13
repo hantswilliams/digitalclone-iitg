@@ -9,13 +9,18 @@
         <div class="px-2 w-2/5">
             <div class="bg-white shadow-md rounded px-8 pt-6 pb-8">
                 <h2 class="mb-6 text-center text-2xl font-extrabold text-gray-900">Create A PowerPoint Slide (DEMO)</h2>
-                <form action="/submit-slide" method="post">
+                <form action="/view4/submit" method="post">
                     <!-- Slide Title -->
                     <div class="mb-4">
                         <label class="block text-gray-700 text-sm font-bold mb-2" for="slide-title">
                             Slide Title
                         </label>
-                        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="slide-title" name="slide_title" type="text" placeholder="Enter slide title">
+                        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" 
+                            id="slide-title" 
+                            name="slide_title" 
+                            type="text" 
+                            placeholder="Enter slide title"
+                        >
                     </div>
     
                     <!-- Slide Body -->
@@ -24,7 +29,10 @@
                             Slide Body
                         </label>
                         <textarea class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" 
-                            id="slide-body" name="slide_body" placeholder="Enter slide content" rows="5">
+                            id="slide-body" 
+                            name="slide_body" 
+                            placeholder="Enter slide content" 
+                            rows="5">
                         </textarea>
                     </div>
     
@@ -33,16 +41,18 @@
                         <label class="block text-gray-700 text-sm font-bold mb-2" for="video-select">
                             Video Select
                         </label>
-                        <select class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" id="video-select" name="video_select">
+                        <select class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" 
+                            id="video-select" 
+                            name="video_select">
                             {% for row in data %}
                                 <option value="{{ row.video_url }}">{{ row.text_selection }}</option>
                             {% endfor %}
                         </select>
     
                         <!-- Video Preview -->
-                        <div id="video-preview" class="mb-4">
+                        <div id="video-preview" class="mb-4" hidden>
                             <label class="block text-gray-700 text-sm font-bold mb-2">Video Preview:</label>
-                            <video id="video-player" controls autoplay style="width: 200; height: 200;"></video>
+                            <video id="video-player" controls style="width: 200; height: 200;"></video>
                         </div>  
     
                     </div>

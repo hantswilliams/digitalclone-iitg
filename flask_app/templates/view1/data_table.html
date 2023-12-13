@@ -22,7 +22,7 @@
                     <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{ row.updated_at }}</td> -->
                     <!-- if row.data_type is equal to Photo, then display the image, otherwise display the text -->
                     {% if row.data_type == "Photo" %}
-                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500"> <img src="{{ row.data_url }}" alt="Image" width="35" height="35"> </td>
+                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500"> <img src="{{ row.photo_url }}" alt="Image" width="35" height="35"> </td>
                     {% else %} 
                         <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                             {% if row.text_content|length > 20 %}
@@ -71,7 +71,7 @@
                             <div>
                                 {% if row.data_type == "Photo" %}
                                 <form hx-post="/view1/image/delete">
-                                    <input type="hidden" name="data_url" value="{{ row.data_url }}">
+                                    <input type="hidden" name="photo_url" value="{{ row.photo_url }}">
                                     <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-full">
                                         Delete
                                     </button>

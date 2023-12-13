@@ -28,11 +28,11 @@
                                 </video>
                             </div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-6 py-4">
                             <dl class="-my-3 divide-y divide-gray-100 px-6 py-4 text-sm leading-6">
                                 <div class="flex justify-between gap-x-4 py-3">
                                     <dt class="text-gray-500">Text:</dt>
-                                    <dd class="text-gray-700">{{ row.text_selection }}</dd>
+                                    <dd class="text-gray-700 break-words max-h-32 overflow-y-auto">{{ row.text_selection }}</dd>
                                 </div>
                                 <div class="flex justify-between gap-x-4 py-3">
                                     <dt class="text-gray-500">Photo:</dt>
@@ -44,7 +44,7 @@
                                 </div>
                                 <div class="flex justify-between gap-x-4 py-3">
                                     <dt class="text-gray-500">Date Created</dt>
-                                    <dd class="text-gray-700"><time datetime="2022-12-13">December 13, 2022</time></dd>
+                                    <dd class="text-gray-700"><time datetime="{{ row.created_at }}">{{ row.created_at }}</time></dd>
                                 </div>
                                 <div class="flex justify-between gap-x-4 py-3">
                                     <dt class="text-gray-500">Actions:</dt>

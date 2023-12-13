@@ -1,18 +1,19 @@
 from flask import Flask, render_template, request, Response, stream_with_context
-from  sqlalchemy.sql.expression import func
 from werkzeug.utils import secure_filename
-from db_model.db import DataEntry, Audio, Video, get_session, init_db  # Import from db.py
-from utils.s3 import s3, s3_get_image_sounds, s3_get_mp4_files, s3_upload_video
-from utils.playht import generate_voice
-from utils.sadtalker import create_video, create_video_job
+from db_model.db import Text, Photo, Audio, Video, Powerpoint, get_session, init_db  # Import from db.py
+from utils.s3 import s3, s3_get_image_sounds, s3_upload_video
+from utils.sadtalker import create_video_job
 import json
 import pandas as pd
 import os
 import requests
 import time
 import uuid
-import pickle
 import datetime
+from pptx import Presentation
+from pptx.util import Inches
+import subprocess
+
 
 app = Flask(__name__)
 app.secret_key = 'super secret key'
@@ -48,13 +49,14 @@ def audio_table():
     row_id = request.form['row_id']
     session = get_session()
     # Query to join DataEntry and Audio
-    query = session.query(DataEntry, Audio).join(Audio, DataEntry.id == Audio.data_entry_id).filter(DataEntry.id == row_id)
+    # query = session.query(DataEntry, Audio).join(Audio, DataEntry.id == Audio.data_entry_id).filter(DataEntry.id == row_id)
+    query = session.query(Text, Audio).join(Audio, Text.id == Audio.text_id).filter(Text.id == row_id)
     data_dict = []
     # Execute the query and process results
-    for data_entry, audio in query.all():
+    for text, audio in query.all():
         # add to data_dict
         data_dict.append({
-            'text_content': data_entry.text_content,
+            'text_content': text.text_content,
             'audio_url': audio.audio_url,
             'voice': audio.voice,
             'audio_text': audio.audio_text,
@@ -80,11 +82,9 @@ def submit_audio():
     text_input = request.form['text_input']
     print('text inputted:', text_input)
     session = get_session()
-    data_entry = DataEntry(
+    data_entry = Text(
         user_id='mvp_001',
-        data_type='Text', 
         text_content=text_input, 
-        data_url=''
     )
     try:
         session.add(data_entry)
@@ -105,7 +105,7 @@ def edit_text():
     row_id = request.form['row_id']
     print('row_id:', row_id)
     session = get_session()
-    data_entry = session.query(DataEntry).filter(DataEntry.id == row_id).first()
+    data_entry = session.query(Text).filter(Text.id == row_id).first()
     print('Data entry: ', data_entry)
     data_entry.text_content = data_entry.text_content.strip()
     return render_template(
@@ -120,7 +120,7 @@ def update_text():
     print('row_id:', row_id)
     print('text inputted:', text_input)
     session = get_session()
-    data_entry = session.query(DataEntry).filter(DataEntry.id == row_id).first()
+    data_entry = session.query(Text).filter(Text.id == row_id).first()
     data_entry.text_content = text_input
     try:
         session.commit()
@@ -134,52 +134,6 @@ def update_text():
             'text_input': text_input}
     formatted_data = json.dumps(data, indent=4).lstrip()
     return render_template('view1/submitted_modal.html', data=formatted_data)
-
-
-# @app.route('/view1/audio/input', methods=['GET', 'POST'])
-# def create_audio():
-    row_id = request.form['row_id']
-    print('row_id:', row_id)
-    session = get_session()
-    data_entry = session.query(DataEntry).filter(DataEntry.id == row_id).first()
-    print('Data entry: ', data_entry)
-    return render_template(
-        'view1/create_audio_modal.html',
-        data=data_entry
-        )
-
-# @app.route('/view1/audio/create', methods=['POST'])
-# def submit_audio_file():
-#     print("RUNNNING SUBMIT AUDIO FILE")
-#     row_id = request.form['row_id']
-#     speaker_type = request.form['speaker_type']
-#     print('Server received: row_id:', row_id, 'speaker_type:', speaker_type)
-#     session = get_session()
-#     data_entry = session.query(DataEntry).filter(DataEntry.id == row_id).first()
-#     text_content = data_entry.text_content
-#     playht_audio_url = generate_voice(speaker_type, text_content)  ## send to playht
-#     print('SERVER MESSAGE: Text Content for Processing:', text_content)
-#     print('playht_audio_url:', playht_audio_url)
-#     # ## upload to s3
-#     # audio_url = s3_upload_sound(row_id, playht_audio_url)
-#     # ## add s3 url path to audio_url
-#     # audio_url = f"https://{BUCKET_NAME}.s3.amazonaws.com/{audio_url}"
-#     ## save to database in Audio table, providing the row_id as the data_entry_id
-#     try:
-#         new_audio = Audio(
-#             audio_url=playht_audio_url, 
-#             voice=speaker_type, 
-#             audio_text=f"{str(text_content)}",
-#             data_entry_id=row_id
-#             )
-#         session.add(new_audio)
-#         session.commit()
-#         session.close()
-#     except:
-#         session.rollback()
-#         raise
-#     print('audio saved to database')
-#     return render_template('view1/submitted_modal.html', data=playht_audio_url)
 
 @app.route('/view1/image/upload', methods=['POST'])
 def upload_file():
@@ -197,13 +151,13 @@ def upload_file():
         s3_client.upload_fileobj(file, BUCKET_NAME, filename)
         # Construct the file URL
         file_url = f"https://{BUCKET_NAME}.s3.amazonaws.com/{filename}"
+        print('CALCULATED FILE URL:', file_url)
         # Save the file URL to the database along with meta data
         session = get_session() # Get a new session
-        data_entry = DataEntry(
+        data_entry = Photo(
             user_id='mvp_001',
-            data_type='Photo', 
-            text_content='Photo from User X', 
-            data_url=file_url
+            photo_description='Photo from User X', 
+            photo_url=file_url
         )
         try:
             session.add(data_entry)
@@ -233,9 +187,9 @@ def delete_text():
     session = get_session()
     try:
         ## delete from DataEntry
-        session.query(DataEntry).filter(DataEntry.id == row_id).delete()
+        session.query(Text).filter(Text.id == row_id).delete()
         ## delete any associated audio
-        session.query(Audio).filter(Audio.data_entry_id == row_id).delete()
+        session.query(Audio).filter(Audio.text_id == row_id).delete()
         session.commit()
     except:
         session.rollback()
@@ -256,9 +210,9 @@ def delete_text():
 
 @app.route('/view1/image/delete', methods=['POST'])
 def delete_file():
-    file_url = request.form['data_url']
-    file_name = file_url.split('/')[-1]
-    print('file_url to delete:', file_name)
+    photo_url = request.form['photo_url']
+    file_name = photo_url.split('/')[-1]
+    print('photo_url to delete:', file_name)
     try:
         s3_client.delete_object(Bucket=BUCKET_NAME, Key=file_name)
         print(f"Deleted {file_name} from {BUCKET_NAME}")
@@ -267,7 +221,7 @@ def delete_file():
         return None
     session = get_session()
     try:
-        session.query(DataEntry).filter(DataEntry.data_url == file_url).delete()
+        session.query(Photo).filter(Photo.photo_url == photo_url).delete()
         session.commit()
     except:
         session.rollback()
@@ -276,12 +230,12 @@ def delete_file():
     print({
             'status': '200', 
             'message': 'File successfully deleted',
-            'file_url': file_url
+            'photo_url': photo_url
         })
     data = {
             'status': '200', 
             'message': 'File successfully deleted',
-            'file_url': file_url
+            'photo_url': photo_url
         }
     formatted_data = json.dumps(data, indent=4).lstrip()
     return render_template('view1/submitted_modal.html', data=formatted_data)
@@ -290,18 +244,22 @@ def delete_file():
 def view2():
     session = get_session()  # Get a new session
 
-    all_data = session.query(DataEntry).all()
-    text_data = [(item.text_content, item.data_url) for item in all_data if item.data_type == 'Text']
-    photo_data = [(item.text_content, item.data_url) for item in all_data if item.data_type == 'Photo']
+    # text_data = [(item.text_content, item.data_url) for item in all_data if item.data_type == 'Text']
+    # photo_data = [(item.text_content, item.data_url) for item in all_data if item.data_type == 'Photo']
     
+    text_data = session.query(Text).all()
+    photo_data = session.query(Photo).all()
+
     # Query to join DataEntry and Audio
-    query = session.query(DataEntry, Audio).join(Audio, DataEntry.id == Audio.data_entry_id)
+    # query = session.query(DataEntry, Audio).join(Audio, DataEntry.id == Audio.data_entry_id)
+    query = session.query(Text, Audio).join(Audio, Text.id == Audio.text_id)
+
     data_dict = []
     # Execute the query and process results
-    for data_entry, audio in query.all():
+    for text, audio in query.all():
         # add to data_dict
         data_dict.append({
-            'text_content': data_entry.text_content,
+            'text_content': text.text_content,
             'audio_url': audio.audio_url,
             'voice': audio.voice,
             'audio_text': audio.audio_text,
@@ -319,9 +277,13 @@ def view2():
 
 @app.route('/view2/submit', methods=['POST'])
 def submit():
-    print(request.form)
+    print('DATA FORM RECEIVED', request.form)
     # data = json.dumps(request.form)
 
+    print('Current Jobs:', current_jobs)
+    print('Current Form Text/Audio:', request.form['audio_selection'])
+    print('Current Form Photo:', request.form['photo_selection'])
+    
     # audio_selection = request.form['audio_selection']
     audio_text_values = request.form['audio_selection']
     audio_selection, text_selection = audio_text_values.split('||', 1)
@@ -340,19 +302,19 @@ def submit():
     ## get row ID from db audio for the audio_selection
     session = get_session()
     audio_row = session.query(Audio).filter(Audio.audio_url == audio_selection).first()
-    audio_row_id = audio_row.data_entry_id
-    text_row_id = audio_row.data_entry_id
-    print('audio_row_id:', audio_row_id)
+    # audio_row_id = audio_row.id
+    text_row_id = audio_row.text_id
+    # print('audio_row_id:', audio_row_id)
 
     ## get row ID from db photo for the photo_selection
-    photo_row = session.query(DataEntry).filter(DataEntry.data_url == photo_selection).first()
+    photo_row = session.query(Photo).filter(Photo.photo_url == photo_selection).first()
     photo_row_id = photo_row.id
     print('photo_row_id:', photo_row_id)
 
     current_job_details[job_id] = {
         'job_id': job_id,
         'audio_selection': audio_selection,
-        'audio_row_id': audio_row_id,
+        # 'audio_row_id': audio_row_id,
         'text_selection': text_selection,
         'text_row_id': text_row_id,
         'photo_selection': photo_selection,
@@ -434,7 +396,7 @@ def submit_progress():
                 new_video = Video(
                     job_id=job_id,
                     audio_selection=passed_job_details['audio_selection'],
-                    audio_row_id=passed_job_details['audio_row_id'],
+                    # audio_row_id=passed_job_details['audio_row_id'],
                     text_selection=passed_job_details['text_selection'],
                     text_row_id=passed_job_details['text_row_id'],
                     photo_selection=passed_job_details['photo_selection'],
@@ -482,8 +444,19 @@ def data():
 
         session = get_session() # Get a new session
         # data = session.query(DataEntry).order_by(func.random()).limit(5).all()
-        data = session.query(DataEntry).all()
+        # data = session.query(DataEntry).all()
+        text_data = session.query(Text).all()
+        photo_data = session.query(Photo).all()
         session.close() # Don't forget to close the session
+
+        ## add in data_type to each row
+        for row in text_data:
+            row.data_type = 'Text'
+        for row in photo_data:
+            row.data_type = 'Photo'
+
+        # combine text and photo data
+        data = text_data + photo_data
 
         ## get s3 image and sound urls
         s3_image_urls, s3_sound_urls = s3_get_image_sounds()
@@ -499,7 +472,7 @@ def stream_page():
     row_id = request.form['row_id']
     print('row_id:', row_id)
     session = get_session()
-    data_entry = session.query(DataEntry).filter(DataEntry.id == row_id).first()
+    data_entry = session.query(Text).filter(Text.id == row_id).first()
     print('Data entry: ', data_entry)
     return render_template(
         'playht/create_audio_modal.html',
@@ -523,7 +496,7 @@ def stream():
         payload = {
             "text": f"{str(text)}",      # "Haunts",
             "voice": f"{voices[voice]}",     # "s3://voice-cloning-zero-shot/09b5c0cc-a8f4-4450-aaab-3657b9965d0b/podcaster/manifest.json",
-            "output_format": "mp3",
+            "output_format": "wav",
             "voice_engine": "PlayHT2.0"
         }
         headers = {
@@ -557,7 +530,8 @@ def stream_response():
             audio_url=audio_url, 
             voice=voice, 
             audio_text=f"{str(text_content)}",
-            data_entry_id=row_id
+            # data_entry_id=row_id
+            text_id=row_id
         )
         session.add(new_audio)
         session.commit()
@@ -576,8 +550,11 @@ def delete_index():
 def delete_db():
     session = get_session()
     try:
-        session.query(DataEntry).delete()
+        session.query(Text).delete()
         session.query(Audio).delete()
+        session.query(Photo).delete()
+        session.query(Video).delete()
+        session.query(Powerpoint).delete()
         session.commit()
         session.close()
     except:
@@ -598,33 +575,134 @@ def create_powerpoint():
         data=video_data
     )
 
-# @app.route('/powerpoint/create/submit', methods=['POST'])
-# def create_powerpoint_submit():
-#     slide_title = request.form['slide_title']
-#     slide_body_text = request.form['slide_body']
-#     slide_video = request.form['slide_video']
-#     print('text inputted:', text_input)
-#     session = get_session()
-#     data_entry = DataEntry(
-#         user_id='mvp_001',
-#         data_type='Text', 
-#         text_content=text_input, 
-#         data_url=''
-#     )
-#     try:
-#         session.add(data_entry)
-#         session.commit()
-#     except:
-#         session.rollback()
-#         raise
-#     session.close()
-#     print('data entry added to database')
-#     data = {'status': '200', 
-#             'message': 'Text successfully added',
-#             'text_input': text_input}
-#     formatted_data = json.dumps(data, indent=4).lstrip()
-#     return render_template('powerpoint/submitted_modal.html', data=formatted_data)
+@app.route('/view4/submit', methods=['GET', 'POST'])
+def create_powerpoint_submit():
+    slide_title = request.form['slide_title']
+    slide_body_text = request.form['slide_body']
+    slide_video = request.form['video_select']
 
+    print(f'slide_title: {slide_title}, slide_body_text: {slide_body_text}, slide_video: {slide_video}')
+
+    normalized_text = slide_body_text.replace('\r\n', '\n').replace('\r', '\n')
+
+    prs = Presentation()
+    slide_layout = prs.slide_layouts[5]  # Using a blank slide layout
+    slide = prs.slides.add_slide(slide_layout)
+
+    # Set slide title
+    title = slide.shapes.title
+    title.text = slide_title
+
+    # Add body text
+    textbox = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(4), Inches(4))
+    text_frame = textbox.text_frame
+    p = text_frame.add_paragraph()
+    p.text = normalized_text
+
+    # Add video
+    ## first download video from s3
+    video_url = slide_video
+    video_name = video_url.split('/')[-1]
+    print('video_name:', video_name)
+    ## download video to /temp_outputs
+    s3_client.download_file(BUCKET_NAME, video_name, f"./temp_outputs/{video_name}")
+    video_path = f"./temp_outputs/{video_name}"
+    image_path = video_path + '.jpg'
+
+    def get_video_dimensions(video_path):
+        """Get the width and height of the video."""
+        cmd = [
+            'ffprobe', 
+            '-v', 'error',
+            '-select_streams', 'v:0',
+            '-show_entries', 'stream=width,height',
+            '-of', 'json',
+            video_path
+        ]
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if result.returncode != 0:
+            raise Exception("ffprobe error: " + result.stderr)
+        info = json.loads(result.stdout)
+        width = info['streams'][0]['width']
+        height = info['streams'][0]['height']
+        return width, height
+    
+    # Get the dimensions of the video
+    video_width, video_height = get_video_dimensions(video_path)
+
+    ppt_height = Inches(1.5)
+    aspect_ratio = video_width / video_height
+    ppt_width = ppt_height * aspect_ratio
+
+    # Positioning the video in the lower right corner of the slide
+    slide_width = prs.slide_width
+    slide_height = prs.slide_height
+
+    left = slide_width - ppt_width - Inches(0.5)  # 0.5 inches from the right side
+    top = slide_height - ppt_height - Inches(0.5)  # 0.5 inches from the bottom
+
+    # Use ffmpeg to extract a frame from the video
+    subprocess.run([
+        'ffmpeg',
+        '-i', video_path,
+        '-ss', '00:00:00',
+        '-frames:v', '1',
+        image_path
+    ])
+
+    slide.shapes.add_movie(
+        video_path, left, top, ppt_width, ppt_height, 
+        poster_frame_image=image_path, mime_type='video/mp4'
+    )
+
+    ## pptx name should be title of slide with date/time stamp
+    now = datetime.datetime.now()
+    date_time = now.strftime("%m-%d-%Y_%H-%M-%S")
+    pptx_name = f'{slide_title}_{date_time}.pptx'
+
+    ## first save to local
+    prs.save(f'temp_outputs/{pptx_name}')
+
+    ## save to s3
+    s3_client.upload_file(f'temp_outputs/{pptx_name}', BUCKET_NAME, pptx_name)
+
+    ## save to database in Powerpoint table
+    session = get_session()
+    try:
+        new_powerpoint = Powerpoint(
+            slide_title=slide_title,
+            slide_body_text=slide_body_text,
+            slide_video_url=slide_video,
+            powerpoint_url=f'https://{BUCKET_NAME}.s3.amazonaws.com/{pptx_name}'
+        )
+        session.add(new_powerpoint)
+        session.commit()
+        session.close()
+    except:
+        session.rollback()
+        raise
+
+    ## then perform clean up
+
+    ## delete any file that ends with .pptx, jpg, or mp4 in ./temp_outputs
+    os.system("rm -rf temp_outputs/*.pptx")
+    print("Deleted all .pptx files in temp_outputs")
+    os.system("rm -rf temp_outputs/*.jpg")
+    print("Deleted all .jpg files in temp_outputs")
+    os.system("rm -rf temp_outputs/*.mp4")
+    print("Deleted all .mp4 files in temp_outputs")
+
+    return '200'
+
+@app.route('/view5')
+def view5():
+    session = get_session()
+    powerpoint_data = session.query(Powerpoint).all()
+    session.close()
+    return render_template(
+        'view5/view5.html', 
+        data=powerpoint_data
+    )
 
 if __name__ == '__main__':
     app.run(debug=True, port=5005)

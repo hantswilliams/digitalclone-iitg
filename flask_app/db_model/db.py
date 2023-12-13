@@ -8,33 +8,41 @@ import random
 # Define the base model
 Base = declarative_base()
 
-# Define the DataEntry model
-class DataEntry(Base):
-    __tablename__ = 'data_entries'
+class Text(Base):
+    __tablename__ = 'text'
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(String)
-    data_type = Column(String)
+    text_content = Column(Text)
     created_at = Column(DateTime, default=datetime.datetime.now())
     updated_at = Column(DateTime, default=datetime.datetime.now(), onupdate=datetime.datetime.now())
-    text_content = Column(Text)
-    data_url = Column(String)
+
+class Photo(Base):
+    __tablename__ = 'photo'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String)
+    photo_url = Column(String)
+    photo_description = Column(String)
+    created_at = Column(DateTime, default=datetime.datetime.now())
+    updated_at = Column(DateTime, default=datetime.datetime.now(), onupdate=datetime.datetime.now())
 
 class Audio(Base):
     __tablename__ = 'audio'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    data_entry_id = Column(Integer, ForeignKey('data_entries.id'), nullable=False)
+    user_id = Column(String)
+    text_id = Column(Integer, ForeignKey('text.id'), nullable=False)
     audio_url = Column(String)
     audio_text = Column(String)
     voice = Column(String)
     created_at = Column(DateTime, default=datetime.datetime.now())
     updated_at = Column(DateTime, default=datetime.datetime.now(), onupdate=datetime.datetime.now())
-    # Relationship back to DataEntry
-    data_entry = relationship("DataEntry", backref=backref("audios", lazy=True))
+    text = relationship("Text", backref=backref("audios", lazy=True)) # Relationship back to Text
 
 class Video(Base):
     __tablename__ = 'video'
     id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String)
     job_id = Column(String)
+    created_at = Column(DateTime, default=datetime.datetime.now())
     audio_selection = Column(String)
     audio_row_id = Column(Integer)
     text_selection = Column(String)
@@ -42,6 +50,33 @@ class Video(Base):
     photo_selection = Column(String)
     photo_row_id = Column(Integer)
     video_url = Column(String)
+
+class Powerpoint(Base):
+    __tablename__ = 'powerpoint'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String)
+    slide_title = Column(String)
+    slide_body_text = Column(String)
+    slide_video_url = Column(String)
+    created_at = Column(DateTime, default=datetime.datetime.now())
+    powerpoint_url = Column(String)
+
+class Project(Base):
+    __tablename__ = 'project'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String)
+    project_name = Column(String)
+    project_description = Column(String)
+    created_at = Column(DateTime, default=datetime.datetime.now())
+    updated_at = Column(DateTime, default=datetime.datetime.now(), onupdate=datetime.datetime.now())
+
+class ProjectMedia(Base):
+    __tablename__ = 'project_media'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    project_id = Column(Integer, ForeignKey('project.id'), nullable=False)
+    
+    project = relationship("Project", backref=backref("project_media", lazy=True)) # Relationship back to Project
+
 
 # Create an engine that stores data in the local directory's sqlite file
 engine = create_engine('sqlite://///Users/hantswilliams/Development/python/digitalclone-iitg/flask_app/dev.db')
