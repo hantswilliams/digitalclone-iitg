@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, Response, stream_with_context
 from werkzeug.utils import secure_filename
-from db_model.db import Text, Photo, Audio, Video, Powerpoint, get_session, init_db  # Import from db.py
+from db_model.db import Text, Photo, Audio, Video, Powerpoint, Project, get_session, init_db, engine  # Import from db.py
 from utils.s3 import s3, s3_get_image_sounds, s3_upload_video
 from utils.sadtalker import create_video_job
 import json
@@ -239,6 +239,41 @@ def delete_file():
         }
     formatted_data = json.dumps(data, indent=4).lstrip()
     return render_template('view1/submitted_modal.html', data=formatted_data)
+
+@app.route('/view1/project/create', methods=['GET', 'POST'])
+def create_project():
+    return render_template('view1/create_project_modal.html')
+
+@app.route('/view1/project/create/submit', methods=['POST'])
+def create_project_submit():
+    ## from form get project_name and project_description
+    project_name = request.form['project_name']
+    project_description = request.form['project_description']
+    print(f'project_name: {project_name}, project_description: {project_description}')
+    ## save to database in Project table
+    session = get_session()
+    try:
+        new_project = Project(
+            project_name=project_name,
+            project_description=project_description
+        )
+        session.add(new_project)
+        session.commit()
+        session.close()
+    except:
+        session.rollback()
+        raise
+    print('project saved to database')
+    data = {'status': '200', 'message': 'Project successfully created'}
+    formatted_data = json.dumps(data, indent=4).lstrip()
+    return render_template('view1/submitted_modal.html', data=formatted_data)
+
+@app.route('/view1/project/get', methods=['GET', 'POST'])
+def get_project():
+    project_data = pd.read_sql('SELECT * FROM project', get_session().bind)
+    project_data = project_data.to_json(orient='records')
+    print('project_data:', project_data)
+    return project_data
 
 @app.route('/view2', methods=['GET', 'POST'])
 def view2():

@@ -15,6 +15,7 @@ class Text(Base):
     text_content = Column(Text)
     created_at = Column(DateTime, default=datetime.datetime.now())
     updated_at = Column(DateTime, default=datetime.datetime.now(), onupdate=datetime.datetime.now())
+    projects = relationship("Project", secondary='project_text_association', back_populates="texts")
 
 class Photo(Base):
     __tablename__ = 'photo'
@@ -24,6 +25,7 @@ class Photo(Base):
     photo_description = Column(String)
     created_at = Column(DateTime, default=datetime.datetime.now())
     updated_at = Column(DateTime, default=datetime.datetime.now(), onupdate=datetime.datetime.now())
+    projects = relationship("Project", secondary='project_photo_association', back_populates="photos")
 
 class Audio(Base):
     __tablename__ = 'audio'
@@ -36,6 +38,7 @@ class Audio(Base):
     created_at = Column(DateTime, default=datetime.datetime.now())
     updated_at = Column(DateTime, default=datetime.datetime.now(), onupdate=datetime.datetime.now())
     text = relationship("Text", backref=backref("audios", lazy=True)) # Relationship back to Text
+    projects = relationship("Project", secondary='project_audio_association', back_populates="audios")
 
 class Video(Base):
     __tablename__ = 'video'
@@ -50,6 +53,7 @@ class Video(Base):
     photo_selection = Column(String)
     photo_row_id = Column(Integer)
     video_url = Column(String)
+    projects = relationship("Project", secondary='project_video_association', back_populates="videos")
 
 class Powerpoint(Base):
     __tablename__ = 'powerpoint'
@@ -60,6 +64,7 @@ class Powerpoint(Base):
     slide_video_url = Column(String)
     created_at = Column(DateTime, default=datetime.datetime.now())
     powerpoint_url = Column(String)
+    projects = relationship("Project", secondary='project_powerpoint_association', back_populates="powerpoints")
 
 class Project(Base):
     __tablename__ = 'project'
@@ -69,15 +74,55 @@ class Project(Base):
     project_description = Column(String)
     created_at = Column(DateTime, default=datetime.datetime.now())
     updated_at = Column(DateTime, default=datetime.datetime.now(), onupdate=datetime.datetime.now())
+    texts = relationship("Text", secondary='project_text_association', back_populates="projects")
+    photos = relationship("Photo", secondary='project_photo_association', back_populates="projects")
+    audios = relationship("Audio", secondary='project_audio_association', back_populates="projects")
+    videos = relationship("Video", secondary='project_video_association', back_populates="projects")
+    powerpoints = relationship("Powerpoint", secondary='project_powerpoint_association', back_populates="projects")
 
-class ProjectMedia(Base):
-    __tablename__ = 'project_media'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    project_id = Column(Integer, ForeignKey('project.id'), nullable=False)
+    def as_dict(self):
+        # Serializing the main fields of the Project
+        project_dict = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
+        # Serializing the related objects
+        for relation in ['texts', 'photos', 'audios', 'videos', 'powerpoints']:
+            related_objects = getattr(self, relation)
+            project_dict[relation] = [self._serialize_related_object(obj) for obj in related_objects]
+
+        return project_dict
+
+    def _serialize_related_object(self, obj):
+        # This method serializes individual related objects
+        # Adjust the fields as necessary based on your related object structure
+        return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
+
+# Association Tables
+class ProjectTextAssociation(Base):
+    __tablename__ = 'project_text_association'
+    project_id = Column(Integer, ForeignKey('project.id'), primary_key=True)
+    text_id = Column(Integer, ForeignKey('text.id'), primary_key=True)
+
+class ProjectPhotoAssociation(Base):
+    __tablename__ = 'project_photo_association'
+    project_id = Column(Integer, ForeignKey('project.id'), primary_key=True)
+    photo_id = Column(Integer, ForeignKey('photo.id'), primary_key=True)
+
+class ProjectAudioAssociation(Base):
+    __tablename__ = 'project_audio_association'
+    project_id = Column(Integer, ForeignKey('project.id'), primary_key=True)
+    audio_id = Column(Integer, ForeignKey('audio.id'), primary_key=True)
+
+class ProjectVideoAssociation(Base):
+    __tablename__ = 'project_video_association'
+    project_id = Column(Integer, ForeignKey('project.id'), primary_key=True)
+    video_id = Column(Integer, ForeignKey('video.id'), primary_key=True)
+
+class ProjectPowerpointAssociation(Base):
+    __tablename__ = 'project_powerpoint_association'
+    project_id = Column(Integer, ForeignKey('project.id'), primary_key=True)
+    powerpoint_id = Column(Integer, ForeignKey('powerpoint.id'), primary_key=True)
+
     
-    project = relationship("Project", backref=backref("project_media", lazy=True)) # Relationship back to Project
-
-
 # Create an engine that stores data in the local directory's sqlite file
 engine = create_engine('sqlite://///Users/hantswilliams/Development/python/digitalclone-iitg/flask_app/dev.db')
 
