@@ -5,7 +5,8 @@
     <!-- Hidden div for automatic loading -->
     <div hx-get="/data/view1" hx-trigger="load" hx-target="#data-table" class="hidden"></div>
 
-    <h1 class="text-3xl font-bold mb-5"> Base Content</h1>
+    <h1 class="text-3xl font-bold mb-5"> Content Management</h1>
+    <p class="mb-5">This is where you can manage your content. You can add text, images, and projects. You can also clone voices.</p>
 
     <!-- Button to open modal -->
     <button hx-get="/view1/form" hx-target="#modal-container" hx-swap="innerHTML" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
@@ -20,6 +21,11 @@
     <!-- Button to open modal for project -->
     <button hx-get="/view1/project/create" hx-target="#modal-container" hx-swap="innerHTML" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
         + Project
+    </button>
+
+    <!-- Button to open modal for project -->
+    <button hx-get="/view1/project/modal" hx-target="#modal-container" hx-swap="innerHTML" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+        List Projects
     </button>
 
     <!-- Button to open modal for new voice -->

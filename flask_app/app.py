@@ -1,7 +1,8 @@
 from flask import Flask, render_template, request, Response, stream_with_context
 from werkzeug.utils import secure_filename
-from db_model.db import Text, Photo, Audio, Video, Powerpoint, Project, get_session, init_db, engine  # Import from db.py
-from utils.s3 import s3, s3_get_image_sounds, s3_upload_video
+from db_model.db import Text, Photo, Audio, Video, Powerpoint, Project, ProjectTextAssociation
+from db_model.db import init_db, get_session, get_projects, get_project_data_associations, update_project_data_associations
+from utils.s3 import s3, s3_upload_video
 from utils.sadtalker import create_video_job
 import json
 import pandas as pd
@@ -71,7 +72,12 @@ def audio_table():
 
 @app.route('/view1/form', methods=['GET'])
 def view_form_audio():
-    return render_template('view1/create_text_modal.html')
+    ## get projects from database
+    projects = get_projects()
+    return render_template(
+        'view1/create_text_modal.html',
+        projects = projects
+        )
 
 @app.route('/view1/image_upload_form', methods=['GET'])
 def image_upload_form():
@@ -80,7 +86,9 @@ def image_upload_form():
 @app.route('/view1/text/upload', methods=['POST'])
 def submit_audio():
     text_input = request.form['text_input']
+    project_id_list = request.form.getlist('project_id[]')
     print('text inputted:', text_input)
+    print('project_id:', project_id_list)
     session = get_session()
     data_entry = Text(
         user_id='mvp_001',
@@ -92,6 +100,24 @@ def submit_audio():
     except:
         session.rollback()
         raise
+
+    # if project_id is not an empty list:
+    if project_id_list:
+        session = get_session()         ## reopen session to get the row_id
+        text_id = session.query(Text).filter(Text.text_content == text_input).first().id
+        print('text_id:', text_id)
+        for project_id in project_id_list:
+            project_text_association = ProjectTextAssociation(
+                project_id=project_id,
+                text_id=text_id
+            )
+            try:
+                session.add(project_text_association)
+                session.commit()
+            except:
+                session.rollback()
+                raise
+    
     session.close()
     print('data entry added to database')
     data = {'status': '200', 
@@ -104,21 +130,30 @@ def submit_audio():
 def edit_text():
     row_id = request.form['row_id']
     print('row_id:', row_id)
+
     session = get_session()
     data_entry = session.query(Text).filter(Text.id == row_id).first()
-    print('Data entry: ', data_entry)
+    session.close()
     data_entry.text_content = data_entry.text_content.strip()
+    print('Data entry: ', data_entry)
+    
+    ## get list of associated projects
+    project_list_associated, project_list_non_associated = get_project_data_associations('text', row_id)
+
     return render_template(
         'view1/edit_text_modal.html',
-        data=data_entry
+        data=data_entry,
+        project_list_associated=project_list_associated,
+        project_list_non_associated=project_list_non_associated
         )
 
 @app.route('/view1/text/update', methods=['POST'])
 def update_text():
     row_id = request.form['row_id']
     text_input = request.form['text_input']
-    print('row_id:', row_id)
-    print('text inputted:', text_input)
+    associated_projects = request.form.getlist('project_id_associated')
+    non_associated_projects = request.form.getlist('project_id_non_associated')
+    projects_to_keep = associated_projects + non_associated_projects
     session = get_session()
     data_entry = session.query(Text).filter(Text.id == row_id).first()
     data_entry.text_content = text_input
@@ -127,7 +162,10 @@ def update_text():
     except:
         session.rollback()
         raise
-    session.close()
+
+    # update associations via update_project_data_associations
+    update_project_data_associations('text', row_id, projects_to_keep)
+
     print('data entry updated in database')
     data = {'status': '200', 
             'message': 'Text successfully updated',
@@ -190,6 +228,9 @@ def delete_text():
         session.query(Text).filter(Text.id == row_id).delete()
         ## delete any associated audio
         session.query(Audio).filter(Audio.text_id == row_id).delete()
+        ## delete associated project_text_association
+        session.query(ProjectTextAssociation).filter(ProjectTextAssociation.text_id == row_id).delete()
+        ## commit changes
         session.commit()
     except:
         session.rollback()
@@ -240,6 +281,55 @@ def delete_file():
     formatted_data = json.dumps(data, indent=4).lstrip()
     return render_template('view1/submitted_modal.html', data=formatted_data)
 
+@app.route('/view1/image/edit', methods=['GET', 'POST'])
+def image_edit():
+    row_id = request.form['row_id']
+    print('row_id:', row_id)
+
+    session = get_session()
+    data_entry = session.query(Photo).filter(Photo.id == row_id).first()
+    session.close()
+    data_entry.photo_description = data_entry.photo_description.strip()
+    print('Data entry: ', data_entry)
+    
+    ## get list of associated projects
+    project_list_associated, project_list_non_associated = get_project_data_associations('photo', row_id)
+
+    return render_template(
+        'view1/edit_image_modal.html',
+        data=data_entry,
+        project_list_associated=project_list_associated,
+        project_list_non_associated=project_list_non_associated
+        )
+
+@app.route('/view1/image/update', methods=['POST'])
+def image_update():
+    row_id = request.form['row_id']
+    image_description = request.form['image_description']
+    associated_projects = request.form.getlist('project_id_associated')
+    non_associated_projects = request.form.getlist('project_id_non_associated')
+    projects_to_keep = associated_projects + non_associated_projects
+    session = get_session()
+    data_entry = session.query(Photo).filter(Photo.id == row_id).first()
+    data_entry.photo_description = image_description
+    try:
+        session.commit()
+    except:
+        session.rollback()
+        raise
+
+    # update associations via update_project_data_associations
+    print('projects_to_keep:', projects_to_keep)
+    update_project_data_associations('photo', row_id, projects_to_keep)
+
+    print('data entry updated in database')
+    data = {'status': '200', 
+            'message': 'Text successfully updated',
+            'image_description': image_description}
+    formatted_data = json.dumps(data, indent=4).lstrip()
+    return render_template('view1/submitted_modal.html', data=formatted_data)
+
+
 @app.route('/view1/project/create', methods=['GET', 'POST'])
 def create_project():
     return render_template('view1/create_project_modal.html')
@@ -268,12 +358,84 @@ def create_project_submit():
     formatted_data = json.dumps(data, indent=4).lstrip()
     return render_template('view1/submitted_modal.html', data=formatted_data)
 
-@app.route('/view1/project/get', methods=['GET', 'POST'])
-def get_project():
-    project_data = pd.read_sql('SELECT * FROM project', get_session().bind)
-    project_data = project_data.to_json(orient='records')
-    print('project_data:', project_data)
-    return project_data
+@app.route('/view1/project/delete', methods=['POST'])
+def delete_project():
+    project_id = request.form['row_id']
+    print('project_id:', project_id)
+    session = get_session()
+    try:
+        ## delete from Project
+        session.query(Project).filter(Project.id == project_id).delete()
+        ## delete any associated audio
+        # session.query(Text).filter(Text.project_id == project_id).delete()
+        # session.query(Audio).filter(Audio.project_id == project_id).delete()
+        # session.query(Photo).filter(Photo.project_id == project_id).delete()
+        # session.query(Video).filter(Video.project_id == project_id).delete()
+        # session.query(Powerpoint).filter(Powerpoint.project_id == project_id).delete()
+        session.commit()
+    except:
+        session.rollback()
+        raise
+    session.close()
+    print({
+            'status': '200', 
+            'message': 'Project successfully deleted',
+            'project_id': project_id
+        })
+    data = {
+            'status': '200', 
+            'message': 'Project successfully deleted',
+            'project_id': project_id
+        }
+    formatted_data = json.dumps(data, indent=4).lstrip()
+    return render_template('view1/submitted_modal.html', data=formatted_data)
+
+@app.route('/view1/project/edit', methods=['GET', 'POST'])
+def edit_project():
+    project_id = request.form['row_id']
+    print('project_id:', project_id)
+    session = get_session()
+    project = session.query(Project).filter(Project.id == project_id).first()
+    print('Project: ', project)
+    return render_template(
+        'view1/edit_project_modal.html',
+        data=project
+        )
+
+@app.route('/view1/project/update', methods=['POST'])
+def update_project():
+    project_id = request.form['row_id']
+    project_name = request.form['project_name']
+    project_description = request.form['project_description']
+    print('project_id:', project_id)
+    print('project_name:', project_name)
+    print('project_description:', project_description)
+    session = get_session()
+    project = session.query(Project).filter(Project.id == project_id).first()
+    project.project_name = project_name
+    project.project_description = project_description
+    try:
+        session.commit()
+    except:
+        session.rollback()
+        raise
+    session.close()
+    print('project updated in database')
+    data = {'status': '200', 
+            'message': 'Project successfully updated',
+            'project_name': project_name}
+    formatted_data = json.dumps(data, indent=4).lstrip()
+    return render_template('view1/submitted_modal.html', data=formatted_data)
+
+@app.route('/view1/project/modal', methods=['GET', 'POST'])
+def project_modal():
+    ## get projects from database
+    projects = get_projects()
+    print('projects:', projects)
+    ## loop through and print each project
+    for project in projects:
+        print(f"Project ID: {project.id}, Project Name: {project.project_name}, Project Description: {project.project_description}")
+    return render_template('view1/project_table_modal.html', data=projects)
 
 @app.route('/view2', methods=['GET', 'POST'])
 def view2():
@@ -493,10 +655,10 @@ def data():
         # combine text and photo data
         data = text_data + photo_data
 
-        ## get s3 image and sound urls
-        s3_image_urls, s3_sound_urls = s3_get_image_sounds()
-        print('s3_image_urls:', s3_image_urls)
-        print('s3_sound_urls:', s3_sound_urls)
+        # ## get s3 image and sound urls
+        # s3_image_urls, s3_sound_urls = s3_get_image_sounds()
+        # print('s3_image_urls:', s3_image_urls)
+        # print('s3_sound_urls:', s3_sound_urls)
 
         return render_template('view1/data_table.html', data=data)
     else:
@@ -590,6 +752,8 @@ def delete_db():
         session.query(Photo).delete()
         session.query(Video).delete()
         session.query(Powerpoint).delete()
+        session.query(Project).delete()
+        session.query(ProjectTextAssociation).delete()
         session.commit()
         session.close()
     except:
@@ -740,4 +904,8 @@ def view5():
     )
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5005)
+    app.run(
+        host='localhost',
+        debug=True, 
+        port=5005
+    )

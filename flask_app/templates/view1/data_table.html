@@ -38,6 +38,18 @@
                         <!-- create a div row for the two buttons  -->
                         <div class="flex flex-row items-center space-x-2">
 
+                            <!-- if row.data_type is Photo, display a button that will send the user to a different page -->
+                            {% if row.data_type == "Photo" %}
+                            <div>
+                                <form hx-post="/view1/image/edit" hx-target="#modal-container" hx-swap="innerHTML">
+                                    <input type="hidden" name="row_id" value="{{ row.id }}">
+                                    <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-full">
+                                        Edit Img
+                                    </button>
+                                </form>
+                            </div>
+                            {% endif %}
+
                             <!-- if row.data_type is Text, display a button that will send the user to a different page -->
                             {% if row.data_type == "Text" %}
                             <div class="flex flex-row items-center space-x-2">
@@ -70,19 +82,23 @@
                         
                             <div>
                                 {% if row.data_type == "Photo" %}
-                                <form hx-post="/view1/image/delete">
-                                    <input type="hidden" name="photo_url" value="{{ row.photo_url }}">
-                                    <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-full">
-                                        Delete
-                                    </button>
-                                </form>
+                                    <div>
+                                        <form hx-post="/view1/image/delete">
+                                            <input type="hidden" name="photo_url" value="{{ row.photo_url }}">
+                                            <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-full">
+                                                Delete
+                                            </button>
+                                        </form>
+                                    </div>
                                 {% elif row.data_type == "Text" %}
-                                <form hx-post="/view1/text/delete" hx-target="#data-table">
-                                    <input type="hidden" name="row_id" value="{{ row.id }}">
-                                    <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-full">
-                                        Delete
-                                    </button>
-                                </form>
+                                    <div>
+                                        <form hx-post="/view1/text/delete" hx-target="#data-table">
+                                            <input type="hidden" name="row_id" value="{{ row.id }}">
+                                            <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-full">
+                                                Delete
+                                            </button>
+                                        </form>
+                                    </div>
                                 {% endif %} 
                             </div>
                         
