@@ -9,9 +9,6 @@ load_dotenv()
 
 api_key = os.getenv("HUGGING")
 
-
-
-
 def encode_file_to_base64(filepath):
     with open(filepath, "rb") as file:
         return base64.b64encode(file.read()).decode('utf-8')
@@ -19,7 +16,6 @@ def encode_file_to_base64(filepath):
 def encode_url_to_base64(url):
     response = requests.get(url)
     return base64.b64encode(response.content).decode('utf-8')
-
 
 # Encode your image and audio files
 image_base64 = encode_file_to_base64("tests/test_content/hants-open.png")
@@ -45,14 +41,20 @@ audio_base64 = encode_url_to_base64("https://github.com/hantswilliams/digitalclo
 # audio_base64[:100]
 
 client = Client(
-    src = "https://hants-sadtalker.hf.space/", 
+    # src = "https://hants-sadtalker.hf.space/", 
+    src = "hants/SadTalker", # this is the space name, not the full URL
     hf_token = api_key,
     output_dir="/Users/hantswilliams/Development/python/digitalclone-iitg/tests/gradio_sadtalker/"
 )
 
-## can use predict or client.submit
 
-result = client.predict(
+### using requests 
+url = "https://hants-sadtalker.hf.space/run/generate_video"
+headers = {
+    'Authorization': 'Bearer ' + api_key,
+}
+json_data = {
+    "data": [
         None, # this is for the input from the form for image (user upload, not used here)  
         None, # this is for the input from the form for the audio (user upload, not used here)
         image_base64, # this is the base64 string for the image, used here
@@ -71,6 +73,34 @@ result = client.predict(
 		False,
 		5,
 		True,
+		"/generate_video",
+	]
+}
+response = requests.post(url, headers=headers, json=json_data)
+response.text
+
+## can use predict or client.submit
+
+result = client.predict(
+        None, # this is for the input from the form for image (user upload, not used here)  
+        None, # this is for the input from the form for the audio (user upload, not used here)
+        image_base64, # this is the base64 string for the image, used here
+		audio_base64, # this is the base64 string for the audio, used here
+		"resize", # this is the image processing method, used here (crop, resize, etc...)
+		True,
+		True,
+		3,
+		512, # this needs to be a NUBMER ! 
+		0,
+		"facevid2vid",
+		1,
+		# False,
+		# None,
+		# "pose",
+		False,
+		5,
+		True,
+        api_name="/generate_video",
 )
 
 print(result)
@@ -94,12 +124,13 @@ job = client.submit(
 		0,
 		"facevid2vid",
 		1,
-		False,
-		None,
-		"pose",
+		# False,
+		# None,
+		# "pose",
 		False,
 		5,
 		True,
+		api_name="/generate_video",
 )
 
 job.status()

@@ -51,12 +51,13 @@ def create_video(image_url, audio_url):
 		0,
 		"facevid2vid",
 		1,
-		False,
-		None,
-		"pose",
+		# False,
+		# None,
+		# "pose",
 		False,
 		5,
 		True,
+        api_name="/generate_video",
     )
 
     print(result)
@@ -128,12 +129,13 @@ def create_video_job(image_url, audio_url):
 		0,
 		"facevid2vid",
 		1,
-		False,
-		None,
-		"pose",
+		# False,
+		# None,
+		# "pose",
 		False,
 		5,
 		True,
+        api_name="/generate_video",
     )
 
     print(job)

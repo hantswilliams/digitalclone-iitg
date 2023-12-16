@@ -9,3 +9,6 @@
 
 ## Script to use for voice cloning:
 - https://www.reddit.com/r/ElevenLabs/comments/1330cxu/script_to_use_for_better_voice_cloning/ 
+
+## Issue:
+- https://github.com/OpenTalker/SadTalker/issues/725 

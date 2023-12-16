@@ -490,8 +490,12 @@ def submit():
     print('audio_selection:', audio_selection)
     print('photo_selection:', photo_selection)
 
-    job = create_video_job(photo_selection, audio_selection)
-    print('Initial State at Launch:', job.status())
+    try:
+        job = create_video_job(photo_selection, audio_selection)
+        print('Initial State at Launch:', job.status())
+    except Exception as e:
+        print(f"Error: {e}")
+        return None
 
     job_id = 'job_' + str(uuid.uuid4())[:4]
     current_jobs[job_id] = job
@@ -567,6 +571,7 @@ def submit_progress():
 
             ## get only the folders that exist in the temp_outputs folder
             folders = [f for f in folder if os.path.isdir(os.path.join("./temp_outputs", f))]
+            print('FOLDERS FOUND IN TEMP:', folders)
                 
             ## get the folder name
             folder_name = folders[0]
@@ -620,6 +625,17 @@ def submit_progress():
 
     return Response(stream_with_context(generate()), mimetype='text/event-stream')
 
+@app.route('/view2b', methods=['GET', 'POST'])
+def view2b():
+    session = get_session()  # Get a new session
+    photo_data = session.query(Photo).all()
+    session.close()
+
+    return render_template(
+        'view2/view2b.html',
+        photo_data=photo_data
+    )
+
 @app.route('/view3')
 def view3():
     ## get videos from video table
@@ -634,6 +650,33 @@ def view3():
         'view3/view3.html', 
         data=video_data
     )
+
+@app.route('/view3/video/delete', methods=['POST'])
+def delete_video():
+    ## from form get row id
+    row_id = request.form['row_id']
+    print('row_id from req args delete:', row_id)
+    session = get_session()
+    try:
+        ## delete from Video
+        session.query(Video).filter(Video.id == row_id).delete()
+        session.commit()
+    except:
+        session.rollback()
+        raise
+    session.close()
+    print({
+            'status': '200', 
+            'message': 'Video successfully deleted',
+            'row_id': row_id
+        })
+    data = {
+            'status': '200', 
+            'message': 'Video successfully deleted',
+            'row_id': row_id
+        }
+    formatted_data = json.dumps(data, indent=4).lstrip()
+    return render_template('view1/submitted_modal.html', data=formatted_data)
 
 @app.route('/data/view1', methods=['GET'])
 def data():
@@ -797,6 +840,9 @@ def create_powerpoint_submit():
     text_frame = textbox.text_frame
     p = text_frame.add_paragraph()
     p.text = normalized_text
+
+
+    print('slide_video FROM SERVER:', slide_video)
 
     # Add video
     ## first download video from s3
