@@ -1,0 +1,241 @@
+
+<!DOCTYPE html>
+
+<html>
+
+<head>
+    <title>Stream Data</title>
+</head>
+
+<body onload="part1()">
+
+
+    <h1>Streaming Data</h1>
+
+    <h1> Creating Audio </h1>
+    <div id="part1"></div>
+    <h1> Saving Audio </h1>
+    <div id="part2"></div>
+    <h1> Creating Video </h1>
+    <div id="part3"></div>
+    <h1> Video Status and Creation </h1>
+    <span class="mt-2 mb-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10" id="part4"> </span>
+    <h1> Creating PowerPoint </h1>
+    <div id="part5"></div>
+    <div id="final"></div>
+
+
+
+
+
+
+    <script type="text/javascript">
+
+        // ignore below error message from syntax highlighting
+        var slides_data = {{ slides_data | tojson }};
+        console.log('slides_data: ', slides_data)
+
+        // get passed variables from flask: arg1_text, arg2_text, text_row_id
+        var text = slides_data[0]['audio_text']
+        var voice = slides_data[0]['voice']
+        var text_row_id = "{{ text_row_id }}";
+        var image_selection = slides_data[0]['image'];
+        var slide_title = slides_data[0]['title'];
+        var slide_body = slides_data[0]['body'];
+
+        console.log("text: " + text);
+        console.log("voice: " + voice);
+        console.log("text_row_id: " + text_row_id);
+        console.log("image_selection: " + image_selection);
+        console.log("slide_title: " + slide_title);
+        console.log("slide_body: " + slide_body);
+        
+        function part1StartStreamAudio(apiUrl, callback) {
+            var source = new EventSource(apiUrl);
+            var isCompleted = false;
+            source.onmessage = function(e) {
+                // Check if the data starts with 'data: '
+                if (e.data.startsWith('data: ')) {
+                    try {
+                        var jsonPart = e.data.substring(6); // 'data: '.length === 6
+                        var data = JSON.parse(jsonPart);
+
+                        document.getElementById('part1').innerHTML += JSON.stringify(data) + '<br>';
+                        document.getElementById('part1').innerHTML += JSON.stringify(data.stage_progress) + '<br>';
+
+                        // Stop the stream if it's completed or if there's an error
+                        if (data.stage && data.stage === 'complete') {
+                            isCompleted = true;
+                            source.close();
+                            console.log('Results URL:', data.url);
+                            var data_audio = data;
+                            callback(data_audio);
+                            document.getElementById('part1').innerHTML = '';
+                            document.getElementById('part1').innerHTML += 'Results URL: ' + data.url + '<br>';
+                        }
+                    }
+                    catch (err) {
+                        console.log('Error:', err);
+                    }
+                } else {
+                    if (isCompleted) {
+                        console.log('isCompleted?: ', isCompleted)
+                        source.close();
+                        console.log('...closing the connection...')
+                    }
+                }
+            }
+            source.onerror = function(e) {
+                        console.error('EventSource failed:', e);
+                    };
+        }
+
+        function part2SaveStreamAudio(data_audio, callback) {
+            console.log('Part 2: Saving stream output');
+            console.log('Part 2, checking for audio url: ', data_audio.url)
+            fetch('/audio/stream-data/response', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json'
+                                        },
+                                        body: JSON.stringify(
+                                            {
+                                                'row_id': text_row_id,
+                                                'playht': data_audio,
+                                                'voice': voice,
+                                                'text': text
+                                            }
+                                        )
+                                    }).then(function(response) {
+                                        return response.text(); // This returns a promise
+                                    }).then(function(responseText) {
+                                        // Now we have the actual response text
+                                        console.log('Response Text:', responseText);
+                                        document.getElementById('part2').innerHTML += 'Response Part 2: ' + responseText + '<br>';
+                                        // Pass the actual response text and data_audio to the callback
+                                        callback(data_audio, responseText);
+                                    }).catch(function(error) {
+                                        console.error('Error:', error);
+                                        document.getElementById('part2').innerHTML += 'Error: ' + error + '<br>';
+                                    });
+
+        }
+        
+        function part3StartVideoCreate(data_audio, callback) {
+            console.log('Part 3: Starting video create...')
+            console.log('Checking audio url: ', data_audio.url)
+            console.log('Checking image_selection: ', image_selection)
+
+            // Create a FormData object
+            let formData = new FormData();
+            formData.append('audio_selection', data_audio.url + "||" + text);
+            formData.append('photo_selection', image_selection); // Note: Make sure this matches the backend ('photo_selection' not 'image_selection')
+            formData.append('return_type', 'json');
+
+            // Make the fetch request with FormData
+            fetch('/view2/submit', {
+                method: 'POST',
+                body: formData // FormData object as the body. Note: Don't set Content-Type header for FormData
+            }).then(function(response) {
+                return response.text(); // This returns a promise
+            }).then(function(responseText) {
+                // Now we have the actual response text
+                console.log('Response Text:', responseText);
+                var jobData = responseText;
+                console.log('Captured JOB ID from part3 Func: ', jobData)
+                document.getElementById('part3').innerHTML += 'Response Part 3: ' + responseText + '<br>';
+                // Pass the actual response text and data_audio to the callback
+                callback(jobData);
+            }).catch(function(error) {
+                console.error('Error:', error);
+                document.getElementById('part3').innerHTML += 'Error: ' + error + '<br>';
+            });
+        }
+
+        function part4StreamingVidCreate(jobData, callback) {
+            console.log('...Starting part4 Streaming Vid')
+            console.log('Part 4 Function jobData to stream: ', jobData)
+            const eventSource = new EventSource('/view2/submit/progress?job_id=' + jobData);
+            const statusTextElement = document.getElementById('part4');
+            eventSource.onmessage = function(event) {
+                statusTextElement.innerText = 'Job: ' + event.data + ' Time: ' + new Date().toLocaleTimeString();
+                console.log('Job Status: ' + event.data);
+                if (event.data.includes('https://')) {
+                    statusTextElement.innerText = 'Final Video URL: ' + event.data;
+                    eventSource.close();
+                    var final_vid_data = event.data;
+                    callback(final_vid_data);
+                }
+            };
+        }
+
+        function part5PowerpointCreate(final_vid_data, callback) {
+            console.log('Part 5 PPT func vid data: ', final_vid_data)
+            console.log('Slide title: ', slide_title)
+            console.log('Slide body: ', slide_body)
+
+            // Create a FormData object
+            let formData = new FormData();
+            formData.append('slide_title', slide_title);
+            formData.append('slide_body', slide_body);
+            formData.append('video_select', final_vid_data);
+            formData.append('requires_formatting', 'false');
+
+            // Make the fetch request with FormData
+            fetch('/view4/submit', {
+                method: 'POST',
+                body: formData // FormData object as the body. Note: Don't set Content-Type header for FormData
+            }).then(function(response) {
+                return response.text(); // This returns a promise
+            }).then(function(responseText) {
+                // Now we have the actual response text
+                console.log('Response Text:', responseText);
+                document.getElementById('part5').innerHTML += 'Response Part 5: ' + responseText + '<br>';
+                // Pass the actual response text and data_audio to the callback
+                callback(responseText);
+            }).catch(function(error) {
+                console.error('Error:', error);
+                document.getElementById('part5').innerHTML += 'Error: ' + error + '<br>';
+            });
+        }
+        
+        function part1() {
+            console.log('Part 1: Starting stream audio...')
+            part1StartStreamAudio('/audio/stream-data?text=' + encodeURIComponent(text) + '&voice=' + encodeURIComponent(voice) + '&stream=' + encodeURIComponent('True'), part2);
+        }
+
+        function part2(data_audio) {
+            console.log('Part 2: Saving stream output');
+            part2SaveStreamAudio(data_audio, part3);
+        }
+
+        function part3(data_audio) {
+            console.log('Part 3: Starting Vid Create')
+            part3StartVideoCreate(data_audio, part4);
+        }
+
+        function part4(jobData) {
+            console.log('Part 4')
+            part4StreamingVidCreate(jobData, part5)
+        }
+
+        function part5(final_vid_data){
+            console.log('Part 5')
+            part5PowerpointCreate(final_vid_data, final)
+        }
+
+        function final() {
+            console.log('...Completed...')
+            document.getElementById('final').innerHTML += 'Completed - Now going to redirect in 3 seconds...<br>';
+            // sleep for 3 seconds then redirect to /view3
+            // setTimeout(function() {
+            //     window.location.href = '/view5';
+            // }, 2000);
+        }
+
+    </script>
+
+
+
+</body>
+</html>

@@ -2,91 +2,104 @@
 
 {% block content %}
 
+
 <div class="flex justify-center items-start pt-6 w-full">
     <div class="flex w-full -mx-2">
         <!-- Form Column -->
         <div class="px-2 w-2/5">
             <div class="bg-white shadow-md rounded px-8 pt-6 pb-8">
                 <h2 class="mb-6 text-center text-2xl font-extrabold text-gray-900">Create A PowerPoint Slide (DEMO)</h2>
-                <form action="/view4/submit" method="post">
-                    <!-- Slide Title -->
-                    <div class="mb-4">
-                        <label class="block text-gray-700 text-sm font-bold mb-2" for="slide-title">
-                            Slide Title
-                        </label>
-                        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" 
-                            id="slide-title" 
-                            name="slide_title" 
-                            type="text" 
-                            placeholder="Enter slide title"
-                        >
-                    </div>
+                <form action="/view2b/submit/part1" method="post">
+                    <!-- Container for dynamic slide input forms -->
+                    <div id="slides-container">
+                        <!-- Initial slide form -->
+                        <div class="slide-input-form mb-4 bg-white shadow-md rounded px-8 pt-6 pb-8">
+                            <div class="mb-4">
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="slide-title-1">
+                                    Slide Title
+                                </label>
+                                <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" 
+                                    id="slide-title-1" 
+                                    name="slide_title[]" 
+                                    type="text" 
+                                    placeholder="Enter slide title"
+                                    oninput="updateSlidePreview(this, 1)"
+                                >
+                            </div>
     
-                    <!-- Slide Body -->
-                    <div class="mb-6">
-                        <label class="block text-gray-700 text-sm font-bold mb-2" for="slide-body">
-                            Slide Body
-                        </label>
-                        <textarea class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" 
-                            id="slide-body" 
-                            name="slide_body" 
-                            placeholder="Enter slide content" 
-                            rows="5">
-                        </textarea>
-                    </div>
+                            <!-- Slide Body -->
+                            <div class="mb-6">
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="slide-body-1">
+                                    Slide Body Text
+                                </label>
+                                <textarea class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" 
+                                    id="slide-body-1" 
+                                    name="slide_body[]" 
+                                    placeholder="Enter slide content" 
+                                    rows="5"
+                                    oninput="updateSlidePreview(this, 1)"
+                                ></textarea>
+                            </div>
 
-                    <!-- Slide Audio Text-->
-                    <div class="mb-6">
-                        <label class="block text-gray-700 text-sm font-bold mb-2" for="slide-audio-text">
-                            Slide Audio Text
-                        </label>
-                        <textarea class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" 
-                            id="slide-audio-text" 
-                            name="slide_audio_text" 
-                            placeholder="Enter slide audio text" 
-                            rows="5">
-                        </textarea>
-                    </div>
+                            <!-- Slide Audio Text-->
+                            <div class="mb-6">
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="slide-audio-text-1">
+                                    Slide Audio Text
+                                </label>
+                                <textarea class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" 
+                                    id="slide-audio-text-1" 
+                                    name="slide_audio_text[]" 
+                                    placeholder="Enter slide audio text" 
+                                    rows="5"
+                                    oninput="updateSlidePreview(this, 1)"
+                                ></textarea>
+                            </div>
 
-                    <!-- Select Audio Voice -->
-                    <div class="mb-6">
-                        <label class="block text-gray-700 text-sm font-bold mb-2" for="audio-voice-select">
-                            Audio Voice Select
-                        </label>
-                        <select name="voice" id="voice" class="shadow border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                            <option value="male_matt">Male (Matt)</option>
-                            <option value="female_nichole">Female (Nicole)</option>
-                            <option value="male_hants">Male (Hants)</option>
-                         </select>
-                    </div>
+                            <!-- Select Audio Voice -->
+                            <div class="mb-6">
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="audio-voice-select-1">
+                                    Audio Voice Select
+                                </label>
+                                <select name="voice[]" id="voice-1" class="shadow border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                                    <option value="male_matt">Male (Matt)</option>
+                                    <option value="female_nichole">Female (Nicole)</option>
+                                    <option value="male_hants">Male (Hants)</option>
+                                </select>
+                            </div>
     
-                    <!-- Image (Actor) Select -->
-                    <div class="mb-6">
-                        <label class="block text-gray-700 text-sm font-bold mb-2" for="image-select">
-                            Image (Actor) Select
-                        </label>
-                        <select class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" 
-                            id="image-select" 
-                            name="image_select">
+                            <!-- Image (Actor) Select -->
+                            <div class="mb-6">
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="image-select-1">
+                                    Image (Actor) Select
+                                </label>
+                                <select class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" 
+                                    id="image-select-1" 
+                                    name="image_select[]">
     
-                            {% for row in photo_data %}
-                                <option value="{{ row.photo_url }}">{{ row.photo_description }}</option>
-                            {% endfor %}
-                        </select>
+                                    {% for row in photo_data %}
+                                        <option value="{{ row.photo_url }}">{{ row.photo_description }}</option>
+                                    {% endfor %}
+                                </select>
 
-                        <!-- Image Preview -->
-                        <div id="selected-image-container" class="mb-4" hidden>
-                            <label class="block text-gray-700 text-sm font-bold mb-2" hidden>Image Preview:</label>
-                            <img id="selected-image" style="width: 200; height: 200;" hidden></img>
+                                <!-- Image Preview -->
+                                <div id="selected-image-container-1" class="mb-4" hidden>
+                                    <img id="selected-image-1" hidden></img>
+                                </div>
+                            </div>
                         </div>
-
-    
                     </div>
-    
+
+                    <!-- Button to add new slides -->
+                    <div class="flex items-center justify-between mb-4">
+                        <button type="button" id="add-slide-button" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                            Add Another Slide
+                        </button>
+                    </div>
+
                     <!-- Submit Button -->
                     <div class="flex items-center justify-between">
                         <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="submit">
-                            Create Slide
+                            Create PowerPoint
                         </button>
                     </div>
                 </form>
@@ -94,7 +107,7 @@
         </div>
 
         <!-- Slide Preview Column -->
-        <div class="px-2 w-3/5">
+        <!-- <div class="px-2 w-3/5">
             <div class="mt-8">
                 <h3 class="text-lg font-semibold text-gray-900 mb-2">Slide Preview (estimate):</h3>
                 <div id="slide-preview" class="border rounded-lg p-4 bg-white" style="min-height: 300px;">
@@ -107,13 +120,23 @@
                     </div>
                 </div>
             </div>
+        </div> -->
+        <!-- Slide Preview Container -->
+        <div id="preview-container" class="px-2 w-3/5">
+            <div class="mt-8">
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Slide Previews (estimate):</h3>
+                <!-- Container where individual slide previews will be inserted -->
+            </div>
         </div>
+
+
+
     </div>
 </div>
 
 {% block scripts %}
-    <script>
 
+    <!-- <script>
         // Function to update image preview
         function updateImagePreview() {
             var imageUrl = document.getElementById('image-select').value;
@@ -135,6 +158,7 @@
             // Replace newline characters with <br> tags for the slide preview
             var formattedBody = body.replace(/\n/g, '<br>');
             document.getElementById('preview-body').innerHTML = formattedBody || '[Slide Body]';
+            console.log('Updated formatted body: ', formattedBody)
 
             var previewImage = document.getElementById('image-player'); // Reference to the image in the slide preview
             previewImage.src = imageUrl; // Set the selected image URL as the src for the preview image
@@ -149,7 +173,183 @@
         updateSlidePreview();
         updateImagePreview();
 
+    </script> -->
+
+    <script>
+        document.getElementById('add-slide-button').addEventListener('click', addNewSlide);
+
+        // Function to initialize the first slide preview
+        function initializeFirstSlidePreview() {
+            // Create the first slide preview HTML
+            var firstPreviewHtml = `
+                <div id="slide-preview-1" class="border rounded-lg p-4 bg-white mb-4" style="min-height: 300px;">
+                    <h4 id="preview-title-1" class="text-xl font-bold mb-4">[Slide Title]</h4>
+                    <div class="flex">
+                        <p id="preview-body-1" class="flex-grow text-gray-700 mr-4">[Slide Body]</p>
+                        <div id="preview-image-1" class="w-1/3">
+                            <img id="image-player-1" style="width: 200px; height: 200px;"></img>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('preview-container').innerHTML = firstPreviewHtml;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeFirstSlidePreview();
+            updateSlidePreview(document.getElementById('slide-title-1'), 1);
+        });
+
+        document.getElementById('add-slide-button').addEventListener('click', addNewSlide);
+
+        function addNewSlide() {
+            var slideIndex = document.getElementsByClassName('slide-input-form').length + 1;
+
+            var newSlideHtml = `
+                <div class="slide-input-form mb-4 bg-white shadow-md rounded px-8 pt-6 pb-8">
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="slide-title-${slideIndex}">
+                            Slide Title
+                        </label>
+                        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" 
+                            id="slide-title-${slideIndex}" 
+                            name="slide_title[]" 
+                            type="text" 
+                            placeholder="Enter slide title"
+                            oninput="updateSlidePreview(this, ${slideIndex})"
+                        >
+                    </div>
+    
+                    <div class="mb-6">
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="slide-body-${slideIndex}">
+                            Slide Body Text
+                        </label>
+                        <textarea class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" 
+                            id="slide-body-${slideIndex}" 
+                            name="slide_body[]" 
+                            placeholder="Enter slide content" 
+                            rows="5"
+                            oninput="updateSlidePreview(this, ${slideIndex})"
+                        ></textarea>
+                    </div>
+    
+                    <div class="mb-6">
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="slide-audio-text-${slideIndex}">
+                            Slide Audio Text
+                        </label>
+                        <textarea class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" 
+                            id="slide-audio-text-${slideIndex}" 
+                            name="slide_audio_text[]" 
+                            placeholder="Enter slide audio text" 
+                            rows="5"
+                            oninput="updateSlidePreview(this, ${slideIndex})"
+                        ></textarea>
+                    </div>
+    
+                    <div class="mb-6">
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="audio-voice-select-${slideIndex}">
+                            Audio Voice Select
+                        </label>
+                        <select name="voice[]" id="voice-${slideIndex}" class="shadow border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                            <option value="male_matt">Male (Matt)</option>
+                            <option value="female_nichole">Female (Nicole)</option>
+                            <option value="male_hants">Male (Hants)</option>
+                        </select>
+                    </div>
+    
+                    <div class="mb-6">
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="image-select-${slideIndex}">
+                            Image (Actor) Select
+                        </label>
+                        <select class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" 
+                            id="image-select-${slideIndex}" 
+                            name="image_select[]"
+                            onchange="updateSlidePreview(this, ${slideIndex})">
+        
+                            {% for row in photo_data %}
+                                <option value="{{ row.photo_url }}">{{ row.photo_description }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+    
+                    <button type="button" onclick="removeSlide(this)">Remove Slide</button>
+                </div>
+            `;
+    
+            document.getElementById('slides-container').insertAdjacentHTML('beforeend', newSlideHtml);
+
+            // Create a new preview section for the added slide
+            var newPreviewHtml = `
+                <div id="slide-preview-${slideIndex}" class="border rounded-lg p-4 bg-white mb-4" style="min-height: 300px;">
+                    <h4 id="preview-title-${slideIndex}" class="text-xl font-bold mb-4">[Slide Title]</h4>
+                    <div class="flex">
+                        <p id="preview-body-${slideIndex}" class="flex-grow text-gray-700 mr-4">[Slide Body]</p>
+                        <div id="preview-image-${slideIndex}" class="w-1/3">
+                            <img id="image-player-${slideIndex}" style="width: 200px; height: 200px;"></img>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('preview-container').insertAdjacentHTML('beforeend', newPreviewHtml);
+            
+        }
+    
+        function updateSlidePreview(inputElement, slideIndex) {
+            var title = document.getElementById('slide-title-' + slideIndex).value;
+            var body = document.getElementById('slide-body-' + slideIndex).value;
+            var imageUrl = document.getElementById('image-select-' + slideIndex).value;
+
+            document.getElementById('preview-title-' + slideIndex).textContent = title || '[Slide Title]';
+            var formattedBody = body.replace(/\n/g, '<br>');
+            document.getElementById('preview-body-' + slideIndex).innerHTML = formattedBody || '[Slide Body]';
+
+            var previewImage = document.getElementById('image-player-' + slideIndex);
+            previewImage.src = imageUrl;
+        }
+    
+        function removeSlide(button) {
+            var slideForm = button.closest('.slide-input-form');
+            var slideIndex = Array.from(slideForm.parentNode.children).indexOf(slideForm) + 1;
+
+            slideForm.remove();
+            document.getElementById('slide-preview-' + slideIndex).remove();
+
+            // Update slide indexes for all following slides
+            updateSlideIndexes(slideIndex);
+        }
+    
+        // Initialize previews for the first slide
+        updateSlidePreview(document.getElementById('slide-title-1'), 1);
+
+        function updateSlideIndexes(startIndex) {
+            var slideForms = document.getElementsByClassName('slide-input-form');
+            var slidePreviews = document.getElementById('preview-container').children;
+
+            for (var i = startIndex; i <= slideForms.length; i++) {
+                slideForms[i - 1].querySelectorAll('input, textarea, select').forEach(function(element) {
+                    var id = element.id.split('-');
+                    id[id.length - 1] = i;
+                    element.id = id.join('-');
+                    element.setAttribute('oninput', 'updateSlidePreview(this, ' + i + ')');
+                });
+
+                slidePreviews[i - 1].id = 'slide-preview-' + i;
+                slidePreviews[i - 1].querySelector('#preview-title-' + (i + 1)).id = 'preview-title-' + i;
+                slidePreviews[i - 1].querySelector('#preview-body-' + (i + 1)).id = 'preview-body-' + i;
+                slidePreviews[i - 1].querySelector('#image-player-' + (i + 1)).id = 'image-player-' + i;
+            }
+        }
+
+        // Event listeners for the first slide
+        document.getElementById('slide-title-1').addEventListener('input', function() { updateSlidePreview(this, 1); });
+        document.getElementById('slide-body-1').addEventListener('input', function() { updateSlidePreview(this, 1); });
+        document.getElementById('image-select-1').addEventListener('change', function() { updateSlidePreview(this, 1); });
     </script>
+    
+
+
+
 {% endblock %}
 
 {% endblock %}

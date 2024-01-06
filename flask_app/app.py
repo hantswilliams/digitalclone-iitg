@@ -1,11 +1,10 @@
-from flask import Flask, render_template, request, Response, stream_with_context
+from flask import Flask, render_template, request, Response, stream_with_context, jsonify
 from werkzeug.utils import secure_filename
 from db_model.db import Text, Photo, Audio, Video, Powerpoint, Project, ProjectTextAssociation
 from db_model.db import init_db, get_session, get_projects, get_project_data_associations, update_project_data_associations
 from utils.s3 import s3, s3_upload_video
 from utils.sadtalker import create_video_job
 import json
-import pandas as pd
 import os
 import requests
 import time
@@ -14,6 +13,8 @@ import datetime
 from pptx import Presentation
 from pptx.util import Inches
 import subprocess
+import urllib
+import html
 
 
 app = Flask(__name__)
@@ -84,8 +85,10 @@ def image_upload_form():
     return render_template('view1/create_image_modal.html')
 
 @app.route('/view1/text/upload', methods=['POST'])
-def submit_audio():
+def submit_text_upload():
     text_input = request.form['text_input']
+    return_output = request.args.get('return_type')
+    print('text output type:', return_output)
     project_id_list = request.form.getlist('project_id[]')
     print('text inputted:', text_input)
     print('project_id:', project_id_list)
@@ -119,12 +122,32 @@ def submit_audio():
                 raise
     
     session.close()
-    print('data entry added to database')
-    data = {'status': '200', 
-            'message': 'Text successfully added',
-            'text_input': text_input}
-    formatted_data = json.dumps(data, indent=4).lstrip()
-    return render_template('view1/submitted_modal.html', data=formatted_data)
+    
+    if return_output == 'html':
+        print('data entry added to database')
+        data = {'status': '200', 
+                'message': 'Text successfully added',
+                'text_input': text_input}
+        formatted_data = json.dumps(data, indent=4).lstrip()
+        return render_template('view1/submitted_modal.html', data=formatted_data)
+
+    else:
+        print('data entry added to database')
+        session = get_session()         ## reopen session to get the row_id
+        text_id = session.query(Text).filter(Text.text_content == text_input).first().id
+        session.close()
+        data = {'status': '200', 
+                'message': 'Text successfully added',
+                'text_row_id': text_id}
+        formatted_data = json.dumps(data, indent=4).lstrip()
+        return formatted_data
+
+    # print('data entry added to database')
+    # data = {'status': '200', 
+    #         'message': 'Text successfully added',
+    #         'text_input': text_input}
+    # formatted_data = json.dumps(data, indent=4).lstrip()
+    # return render_template('view1/submitted_modal.html', data=formatted_data)
 
 @app.route('/view1/text/edit', methods=['GET', 'POST'])
 def edit_text():
@@ -439,6 +462,7 @@ def project_modal():
 
 @app.route('/view2', methods=['GET', 'POST'])
 def view2():
+
     session = get_session()  # Get a new session
 
     # text_data = [(item.text_content, item.data_url) for item in all_data if item.data_type == 'Text']
@@ -447,9 +471,17 @@ def view2():
     text_data = session.query(Text).all()
     photo_data = session.query(Photo).all()
 
+    for i in text_data:
+        print('XXX Text data: ', i.text_content)
+
+    for i in photo_data:
+        print('XXX Photo Data: ', i.photo_url)
+
     # Query to join DataEntry and Audio
     # query = session.query(DataEntry, Audio).join(Audio, DataEntry.id == Audio.data_entry_id)
     query = session.query(Text, Audio).join(Audio, Text.id == Audio.text_id)
+
+    print('Combined QUERY data: ', query.all())
 
     data_dict = []
     # Execute the query and process results
@@ -484,8 +516,8 @@ def submit():
     # audio_selection = request.form['audio_selection']
     audio_text_values = request.form['audio_selection']
     audio_selection, text_selection = audio_text_values.split('||', 1)
-
     photo_selection = request.form['photo_selection']
+    return_type = request.form['return_type']
 
     print('audio_selection:', audio_selection)
     print('photo_selection:', photo_selection)
@@ -528,7 +560,10 @@ def submit():
         'job_status': job.status().code,
     }
     
-    return render_template('view2/submitted_modal.html', data=results)
+    if return_type == 'html':
+        return render_template('view2/submitted_modal.html', data=results)
+    else:
+        return job_id
 
 @app.route('/view2/submit/progress')
 def submit_progress():
@@ -560,7 +595,9 @@ def submit_progress():
             job_status = str(passed_job_object.status().code)
             print('FINISHED job_status:', job_status)
             yield f"data: {job_status}\n\n"
-            time.sleep(1)
+            
+            time.sleep(5) # made this slower to allow for video download from remote server
+            ## if on a faster machine, get make this quicker - currently out of country so need to do this
 
             ## get working directory
             working_dir = os.getcwd()
@@ -572,13 +609,49 @@ def submit_progress():
             ## get only the folders that exist in the temp_outputs folder
             folders = [f for f in folder if os.path.isdir(os.path.join("./temp_outputs", f))]
             print('FOLDERS FOUND IN TEMP:', folders)
+
+            ###############################################################
+            ###############################################################
+            #####################FOR DEALING WITH SLOW INTERNET############
+            ###############################################################
+            ###############################################################
+
+            start_time = time.time()  # Capture the start time
+            timeout = 60  # Set the timeout period to 60 seconds
+
+            while True:
+                # List only directories in the specified path
+                folders = [f for f in os.listdir("./temp_outputs") if os.path.isdir(os.path.join("./temp_outputs", f))]
+                print('FOLDERS FOUND IN TEMP:', folders)
                 
+                # Check if the folder list is not empty or if the timeout has been reached
+                if folders or (time.time() - start_time) > timeout:
+                    break  # Exit the loop if folders are found or timeout has been reached
+                
+                time.sleep(5)  # Wait for 5 seconds before trying again
+
+            # Check the reason for the loop exit and act accordingly
+            if not folders:
+                print('Error: No folders found within the 60 seconds time frame.')
+                # Handle the error condition here
+            else:
+                print('Folders have been found.')
+                # Continue with the rest of your code
+                
+            ###############################################################
+            ###############################################################
+            #####################FOR DEALING WITH SLOW INTERNET############
+            ###############################################################
+            ###############################################################
+
+
             ## get the folder name
             folder_name = folders[0]
             # print('FOLDER NAME: ', folder_name)
             
             ## get the .mp4 file from the folder
             video_file = os.listdir("./temp_outputs/" + folder_name)[0]
+            print('FOUND NEW VID FILE: ', video_file)
             
             ## upload the video file to S3
             try:
@@ -608,20 +681,21 @@ def submit_progress():
                 session.add(new_video)
                 session.commit()
                 session.close()
+                ## yield the video_url
+                s3_url=f'https://{BUCKET_NAME}.s3.amazonaws.com/{video_url}'
+                yield f"data: {s3_url}\n\n"
+                ## delete the job from the current_jobs dictionary
+                del current_jobs[passed_job]
+            
             except:
                 session.rollback()
-                raise
-
-            ## delete the job from the current_jobs dictionary
-            del current_jobs[passed_job]
-            
+                raise            
         else:
             job_status = str(passed_job_object.status().code)
             print('OTHER job_status:', job_status)
             yield f"data: {job_status}"
         
         yield f"data: {job_status}"
-
 
     return Response(stream_with_context(generate()), mimetype='text/event-stream')
 
@@ -630,11 +704,91 @@ def view2b():
     session = get_session()  # Get a new session
     photo_data = session.query(Photo).all()
     session.close()
-
     return render_template(
         'view2/view2b.html',
         photo_data=photo_data
     )
+
+@app.route("/view2b/submit/part1", methods=["POST"])
+def submit2b():
+    # Part 0 - Get the data from the form for multiple slides
+    slide_titles = request.form.getlist('slide_title[]')
+    slide_bodies = request.form.getlist('slide_body[]')
+    slide_audio_texts = request.form.getlist('slide_audio_text[]')
+    voice_selections = request.form.getlist('voice[]')
+    image_selections = request.form.getlist('image_select[]')
+
+    # Process each slide's data
+    slides_data = []
+    for i in range(len(slide_titles)):
+        slide_data = {
+            'title': slide_titles[i],
+            'body': slide_bodies[i].replace('\r\n', '\n').replace('\r', '\n'),
+            'audio_text': slide_audio_texts[i],
+            'voice': voice_selections[i],
+            'image': image_selections[i]
+        }
+        slides_data.append(slide_data)
+
+        # Part 1 - Save text for each slide (example shown for the first slide)
+        if i == 0:  # As an example, processing only the first slide
+            url = "http://localhost:5005/view1/text/upload"
+            data = {"text_input": slide_audio_texts[i]}
+            headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+            response = requests.post(url, data=data, headers=headers)
+            text_row_id = response.json().get('text_row_id', None)
+        else:
+            text_row_id = None  # Placeholder for other slides processing
+
+        # Print slide data for debugging
+        print(f"FROM SERVER: Slide {i+1}: {slide_data}")
+
+    ## Part 2 - Create audio file (and other processing as needed)
+    return render_template(
+        'view2/submitted_modal_2b.html',
+        slides_data=slides_data,
+        text_row_id=text_row_id  # Example: sending text_row_id of the first slide
+    )
+
+# @app.route("/view2b/submit/part1", methods=["POST"])
+# def submit2b():
+
+#     ## Part 0 - Get the data from the form
+#     slide_title = request.form['slide_title']
+
+#     slide_body = request.form['slide_body'].replace('\r\n', '\n').replace('\r', '\n')
+#     slide_body = json.dumps(slide_body)
+
+#     # slide_body = request.form['slide_body'].replace('\r\n', '\n').replace('\r', '\n')
+#     # print('slide_body_from_server: ', slide_body)
+
+#     # slide_body = request.form['slide_body'].replace('\r\n', '\n').replace('\r', '\n')
+#     # slide_body = json.dumps(slide_body)
+
+#     slide_audio_text = request.form['slide_audio_text']
+#     voice_selection = request.form['voice']
+#     image_selection = request.form['image_select']
+#     print(f"FROM SERVER: slide_title: {slide_title}, slide_body: {slide_body}, slide_audio_text: {slide_audio_text}, voice_selection: {voice_selection}, image_selection: {image_selection}")
+    
+#     ## Part 1 - Save text
+#     ### send data to /view1/text/upload endpoint 
+#     url = "http://localhost:5005/view1/text/upload"
+#     data = {"text_input": slide_audio_text}
+#     headers={'Content-Type': 'application/x-www-form-urlencoded'}
+#     response = requests.post(url, data=data, headers=headers)
+#     response.json()
+#     text_row_id = response.json()['text_row_id']
+
+#     ## Part 2 - Create audio file    
+#     return render_template(
+#         'view2/submitted_modal_2b.html',
+#         text=slide_audio_text,
+#         voice=request.form['voice'],
+#         text_row_id=text_row_id,
+#         image_selection=image_selection,
+#         slide_title=slide_title,
+#         slide_body=slide_body
+#     )
 
 @app.route('/view3')
 def view3():
@@ -719,11 +873,14 @@ def stream_page():
         data=data_entry
     )
 
-@app.route('/audio/stream-data')
+@app.route('/audio/stream-data', methods=['GET', 'POST'])
 def stream():
 
     text = request.args.get('text', 'Default text')  # Fallback to default text if not provided
     voice = request.args.get('voice', 'Default voice')  # Fallback to default voice if not provided
+    stream = request.args.get('stream', 'False')  # Fallback to default voice if not provided
+
+    print(f'CREATING AUDIO: text: {text}, voice: {voice}, stream: {stream}')
 
     voices = {
         "male_matt": "s3://voice-cloning-zero-shot/09b5c0cc-a8f4-4450-aaab-3657b9965d0b/podcaster/manifest.json",
@@ -731,7 +888,33 @@ def stream():
         "male_hants": "s3://voice-cloning-zero-shot/fdbb6c51-284f-4ffb-8820-56d3f5513862/hants-v1/manifest.json",
     }
 
-    def event_stream():
+    if stream == 'True':
+        def event_stream():
+            url = "https://api.play.ht/api/v2/tts"
+            payload = {
+                "text": f"{str(text)}",      # "Haunts",
+                "voice": f"{voices[voice]}",     # "s3://voice-cloning-zero-shot/09b5c0cc-a8f4-4450-aaab-3657b9965d0b/podcaster/manifest.json",
+                "output_format": "wav",
+                "voice_engine": "PlayHT2.0"
+            }
+            headers = {
+                "accept": "text/event-stream",
+                "content-type": "application/json",
+                "Authorization": "Bearer " + apikey,
+                "X-USER-ID": userid
+            }
+            with requests.post(url, stream=True, headers=headers, json=payload) as response:
+                for line in response.iter_lines():
+                    if line:
+                        decoded_line = line.decode('utf-8')
+                        yield f"data: {decoded_line}\n\n"
+
+        return Response(
+            stream_with_context(event_stream()),
+            content_type='text/event-stream'
+            )
+    
+    elif stream == 'False':
         url = "https://api.play.ht/api/v2/tts"
         payload = {
             "text": f"{str(text)}",      # "Haunts",
@@ -740,21 +923,15 @@ def stream():
             "voice_engine": "PlayHT2.0"
         }
         headers = {
-            "accept": "text/event-stream",
+            "accept": "application/json",
             "content-type": "application/json",
             "Authorization": "Bearer " + apikey,
             "X-USER-ID": userid
         }
-        with requests.post(url, stream=True, headers=headers, json=payload) as response:
-            for line in response.iter_lines():
-                if line:
-                    decoded_line = line.decode('utf-8')
-                    yield f"data: {decoded_line}\n\n"
+        response = requests.post(url, headers=headers, json=payload)
+        print('playHT job ID response:', response)
 
-    return Response(
-        stream_with_context(event_stream()),
-        content_type='text/event-stream'
-        )
+        return response.json()
 
 @app.route('/audio/stream-data/response', methods=['POST'])
 def stream_response():
@@ -822,10 +999,18 @@ def create_powerpoint_submit():
     slide_title = request.form['slide_title']
     slide_body_text = request.form['slide_body']
     slide_video = request.form['video_select']
+    requires_formatting = request.form['requires_formatting']
 
     print(f'slide_title: {slide_title}, slide_body_text: {slide_body_text}, slide_video: {slide_video}')
 
+    # if requires_formatting == 'true':
     normalized_text = slide_body_text.replace('\r\n', '\n').replace('\r', '\n')
+    normalized_text = html.unescape(normalized_text)
+    normalized_text = normalized_text.strip('"')
+
+
+    # else:
+    #     normalized_text = slide_body_text
 
     prs = Presentation()
     slide_layout = prs.slide_layouts[5]  # Using a blank slide layout

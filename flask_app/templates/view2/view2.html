@@ -24,6 +24,10 @@
         <h1 class="text-xl font-bold"> Version 1 Inputs: Audio and Photo</h1>
         <p class="text-blue-500"> Involves generation of video from audio and photo</p>
         <form hx-post="/view2/submit" hx-target="#modal" hx-swap="outerHTML" id="data-form" class="bg-white p-4 shadow rounded-lg">
+            
+            <!-- create hidden field called return_type which has a value of html -->
+            <input type="hidden" name="return_type" value="html" />
+
             <div class="mb-4">
                 <label for="audio_selection" class="block text-gray-700 text-sm font-bold mb-2">Select Audio (Text):</label>
                 <select name="audio_selection" id="audio_selection" class="shadow border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
@@ -33,6 +37,7 @@
                     {% endfor %}
                 </select>
             </div>
+
             <div class="mb-4">
                 <label for="photo_selection" class="block text-gray-700 text-sm font-bold mb-2">Select Photo:</label>
                 <select name="photo_selection" id="photo_selection" class="shadow border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
@@ -41,6 +46,7 @@
                     {% endfor %}
                 </select>
             </div>
+            
             <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
                 Submit
             </button>

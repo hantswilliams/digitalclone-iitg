@@ -101,7 +101,7 @@
                     var rowId = document.getElementById('row_id').value;
                     console.log('Text:', text);
                     console.log('Voice:', voice);
-                    var eventSource = new EventSource('/audio/stream-data?text=' + encodeURIComponent(text) + '&voice=' + encodeURIComponent(voice));
+                    var eventSource = new EventSource('/audio/stream-data?text=' + encodeURIComponent(text) + '&voice=' + encodeURIComponent(voice) + '&stream=' + encodeURIComponent('True'));
                     eventSource.onmessage = function(e) {
                         // Check if the data starts with 'data: '
                         if (e.data.startsWith('data: ')) {

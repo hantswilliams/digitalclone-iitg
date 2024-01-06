@@ -9,6 +9,10 @@
             <div class="bg-white shadow-md rounded px-8 pt-6 pb-8">
                 <h2 class="mb-6 text-center text-2xl font-extrabold text-gray-900">Create A PowerPoint Slide (DEMO)</h2>
                 <form action="/view4/submit" method="post">
+
+                    <!-- create hidden value for requires_formatting, and should be set to true -->
+                    <input type="hidden" name="requires_formatting" value="true">
+
                     <!-- Slide Title -->
                     <div class="mb-4">
                         <label class="block text-gray-700 text-sm font-bold mb-2" for="slide-title">

@@ -1,12 +1,19 @@
 # Digitalclone-iitg
 
 ## To do: 
-- Should create separate table for Text and Photo - that way have separate tables for Text, Photo, Video, Audio, and in future PPT // partially done, have created db.py tables, but not updated app.py code
+
+## Partially done:
+- Have created ability to do multiple slides, need to update the javascript further in the submitted_modal_2b.html file so: 
+    - it can loop through the slides 
+    - will need to modify the 5th function, where it puts things together into a powerpoint, so it can handle brining in multiple slides 
+    - might need to update the python code here as well, so it can handle multiple slides
+    - have not touched this part yet 
 - Should also create Project component 
     - idea should be that you should then be able to associate different media types with a project
 
-
 ## Done:
+- Should create separate table for Text and Photo - that way have separate tables for Text, Photo, Video, Audio, and in future PPT // partially done, have created db.py tables, but not updated app.py code
+- Added in new way of creating slide + audio + video all together 
 - Need to add in .mp4 to one of the tables (DONE)
 - Add in PPT create (DONE)
 - Need to add some polling or some way of status updates for the sadface API component (DONE)
