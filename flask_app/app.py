@@ -999,7 +999,7 @@ def create_powerpoint_submit():
     slide_title = request.form['slide_title']
     slide_body_text = request.form['slide_body']
     slide_video = request.form['video_select']
-    requires_formatting = request.form['requires_formatting']
+    # requires_formatting = request.form['requires_formatting']
 
     print(f'slide_title: {slide_title}, slide_body_text: {slide_body_text}, slide_video: {slide_video}')
 
@@ -1122,7 +1122,60 @@ def create_powerpoint_submit():
     os.system("rm -rf temp_outputs/*.mp4")
     print("Deleted all .mp4 files in temp_outputs")
 
-    return '200'
+    return f'https://{BUCKET_NAME}.s3.amazonaws.com/{pptx_name}'
+
+## create an endpoint that takes in a list of URLs for PPTXs and then combines
+## them into one PPTX
+@app.route('/view4/combine', methods=['GET', 'POST'])
+def combine_powerpoint():
+    ## get list of URLs from post request
+    urls = request.form.getlist('pptx_urls[]')
+    print('urls:', urls)
+    ## download each file to ./temp_outputs
+    for url in urls:
+        pptx_name = url.split('/')[-1]
+        print('pptx_name:', pptx_name)
+        s3_client.download_file(BUCKET_NAME, pptx_name, f"./temp_outputs/{pptx_name}")
+    ## combine the files
+    prs = Presentation()
+    for url in urls:
+        pptx_name = url.split('/')[-1]
+        print('pptx_name:', pptx_name)
+        prs_temp = Presentation(f"./temp_outputs/{pptx_name}")
+        for slide in prs_temp.slides:
+            prs.slides.add_slide(slide)
+    ## save the combined file to ./temp_outputs
+    now = datetime.datetime.now()
+    date_time = now.strftime("%m-%d-%Y_%H-%M-%S")
+    pptx_name = f'combined_{date_time}.pptx'
+    prs.save(f'temp_outputs/{pptx_name}')
+    ## save the combined file to s3
+    s3_client.upload_file(f'temp_outputs/{pptx_name}', BUCKET_NAME, pptx_name)
+    ## save to database in Powerpoint table
+    session = get_session()
+    try:
+        new_powerpoint = Powerpoint(
+            slide_title='Combined',
+            slide_body_text='Combined',
+            slide_video_url='Combined',
+            powerpoint_url=f'https://{BUCKET_NAME}.s3.amazonaws.com/{pptx_name}'
+        )
+        session.add(new_powerpoint)
+        session.commit()
+        session.close()
+    except:
+        session.rollback()
+        raise
+    ## then perform clean up
+    ## delete any file that ends with .pptx, jpg, or mp4 in ./temp_outputs
+    os.system("rm -rf temp_outputs/*.pptx")
+    print("Deleted all .pptx files in temp_outputs")
+    os.system("rm -rf temp_outputs/*.jpg")
+    print("Deleted all .jpg files in temp_outputs")
+    os.system("rm -rf temp_outputs/*.mp4")
+    print("Deleted all .mp4 files in temp_outputs")
+
+    return f'https://{BUCKET_NAME}.s3.amazonaws.com/{pptx_name}'
 
 @app.route('/view5')
 def view5():
