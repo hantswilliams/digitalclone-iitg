@@ -35,20 +35,18 @@
         var slides_data = {{ slides_data | tojson }};
         console.log('slides_data: ', slides_data)
         var pptUrls = [];
+        var videoUrls = [];
         var text_row_id = "{{ text_row_id }}";
-
-        function final() {
-            console.log('...Completed...')
-            document.getElementById('final').innerHTML += 'Completed - Now going to redirect in 3 seconds...<br>';
-            setTimeout(function() {
-                window.location.href = '/view5';
-            }, 2000);
-        }
+        console.log('SLIDE LENGTH TO PROCESS: ', slides_data.length)
 
         function processSlides(index) {
 
-            if (index >= slides_data.length) {
+            console.log('Currently working on index: ', index)
+
+            if (index >= (slides_data.length)) {
                 // All slides processed, proceed to combine PPTs
+                console.log('...All slides processed, proceeding to combine PPTs...')
+                console.log('pptUrls: ', pptUrls)
                 part6CombinePPTs(pptUrls, final);
                 return;
             }
@@ -180,13 +178,15 @@
                     if (event.data.includes('https://')) {
                         statusTextElement.innerText = 'Final Video URL: ' + event.data;
                         eventSource.close();
+                        // add video url to list
+                        videoUrls.push(event.data);
                         var final_vid_data = event.data;
                         callback(final_vid_data);
                     }
                 };
             }
 
-            function part5PowerpointCreate(final_vid_data, callback) {
+            function part5PowerpointCreate(final_vid_data) { //, callback) {
                 console.log('Part 5 PPT func vid data: ', final_vid_data)
                 console.log('Slide title: ', slide_title)
                 console.log('Slide body: ', slide_body)
@@ -208,9 +208,11 @@
                     // Now we have the actual response text
                     console.log('Response Text:', responseText);
                     var pptUrl = responseText;
+                    pptUrls.push(pptUrl); // Add the output URL to the list
                     document.getElementById('part5').innerHTML += 'Response Part 5: ' + responseText + '<br>';
+                    processSlides(index + 1); // Process the next slide
                     // Pass the actual response text and data_audio to the callback
-                    callback(responseText);
+                    // callback(responseText);
                 }).catch(function(error) {
                     console.error('Error:', error);
                     document.getElementById('part5').innerHTML += 'Error: ' + error + '<br>';
@@ -220,30 +222,69 @@
             function part6CombinePPTs(list_of_pptUrls, callback) {
                 console.log('Part 6 Combine PPTs func list_of_pptUrls: ', list_of_pptUrls)
 
-                // Create a FormData object
-                let formData = new FormData();
-                formData.append('ppt_urls', list_of_pptUrls);
-                formData.append('requires_formatting', 'false');
+                // Combine slides_data and videoUrls into a single array
+                let combinedSlidesData = slides_data.map((slide, index) => ({
+                    title: slide.title,
+                    body: slide.body,
+                    videoUrl: videoUrls[index]
+                }));
 
-                // Make the fetch request with FormData
-                fetch('/view4/combine', {
+                console.log('combinedSlidesData: ', combinedSlidesData)
+
+                // console log to check the combinedSlidesData
+                console.log('combinedSlidesData JSON check: ', JSON.stringify(combinedSlidesData))
+
+                fetch('/view4/combine_slides', {
                     method: 'POST',
-                    body: formData // FormData object as the body. Note: Don't set Content-Type header for FormData
-                }).then(function(response) {
-                    return response.text(); // This returns a promise
-                }).then(function(responseText) {
-                    // Now we have the actual response text
-                    console.log('Response Text:', responseText);
-                    var pptUrl = responseText;
-                    document.getElementById('part6').innerHTML += 'Response Part 6: ' + responseText + '<br>';
-                    // Pass the actual response text and data_audio to the callback
-                    callback(responseText);
-                }).catch(function(error) {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(combinedSlidesData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Success combined all slides Part6:', data);
+                    callback(data);
+                })
+                .catch((error) => {
                     console.error('Error:', error);
-                    document.getElementById('part6').innerHTML += 'Error: ' + error + '<br>';
                 });
 
-                return pptUrl;
+                // // Create a FormData object
+                // let formData = new FormData();
+
+                // // Append each URL to the formData with the correct key
+                // list_of_pptUrls.forEach(url => {
+                //     formData.append('pptx_urls[]', url);
+                // });
+
+                // formData.append('requires_formatting', 'false');
+
+                // // Make the fetch request with FormData
+                // fetch('/view4/combine', {
+                //     method: 'POST',
+                //     body: formData // FormData object as the body. Note: Don't set Content-Type header for FormData
+                // }).then(function(response) {
+                //     return response.text(); // This returns a promise
+                // }).then(function(responseText) {
+                //     // Now we have the actual response text
+                //     console.log('Response Text:', responseText);
+                //     var pptUrl = responseText;
+                //     document.getElementById('part6').innerHTML += 'Response Part 6: ' + responseText + '<br>';
+                //     // Pass the actual response text and data_audio to the callback
+                //     callback(responseText);
+                // }).catch(function(error) {
+                //     console.error('Error:', error);
+                //     document.getElementById('part6').innerHTML += 'Error: ' + error + '<br>';
+                // });
+            }
+
+            function final() {
+                console.log('...Completed...')
+                document.getElementById('final').innerHTML += 'Completed - Now going to redirect in 3 seconds...<br>';
+                // setTimeout(function() {
+                //     window.location.href = '/view5';
+                // }, 2000);
             }
 
             function part1() {
@@ -268,9 +309,7 @@
 
             function part5(final_vid_data){
                 console.log('Part 5')
-                outputUrl = part5PowerpointCreate(final_vid_data, part6)
-                pptUrls.push(outputUrl);
-                processSlides(index + 1);
+                part5PowerpointCreate(final_vid_data) //, part6)
             }
 
             part1(); // Start processing the slide

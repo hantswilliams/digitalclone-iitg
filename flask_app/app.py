@@ -577,125 +577,248 @@ def submit_progress():
     passed_job_details = current_job_details[passed_job]
     print('passed_job_details from serverside:', passed_job_details)
     print('Before generate status():', passed_job_object.status())
-    # print job status until it is complete
+    
+    
     def generate():
-        while str(passed_job_object.status().code) == "Status.STARTING":
-            job_status = str(passed_job_object.status().code)
-            print('STARTING job_status:', job_status)
-            yield f"data: {job_status}\n\n"
-            time.sleep(1)
-        
-        while str(passed_job_object.status().code) == "Status.PROCESSING":
-            job_status = str(passed_job_object.status().code)
-            print('PROCESSING job_status:', job_status)
-            yield f"data: {job_status}\n\n"
-            time.sleep(1)
-        
-        while str(passed_job_object.status().code) == "Status.FINISHED":
-            job_status = str(passed_job_object.status().code)
-            print('FINISHED job_status:', job_status)
-            yield f"data: {job_status}\n\n"
+        while True:
+            job_status_code = str(passed_job_object.status().code)
             
-            time.sleep(5) # made this slower to allow for video download from remote server
-            ## if on a faster machine, get make this quicker - currently out of country so need to do this
+            print(f"Current job_status: {job_status_code}")
 
-            ## get working directory
-            working_dir = os.getcwd()
-            print('WORKING DIR: ', working_dir)
+            if job_status_code in ["Status.STARTING", "Status.PROCESSING"]:
+                yield f"data: {job_status_code}\n\n"
+                time.sleep(1)
 
-            ## get the new folder name from the temp_outputs folder
-            folder = os.listdir("./temp_outputs")
+            elif job_status_code == "Status.FINISHED":
 
-            ## get only the folders that exist in the temp_outputs folder
-            folders = [f for f in folder if os.path.isdir(os.path.join("./temp_outputs", f))]
-            print('FOLDERS FOUND IN TEMP:', folders)
+                print('FINISHED job_status:', job_status_code)
+                yield f"data: {job_status_code}\n\n"
+                
+                time.sleep(5) # made this slower to allow for video download from remote server
+                ## if on a faster machine, get make this quicker - currently out of country so need to do this
 
-            ###############################################################
-            ###############################################################
-            #####################FOR DEALING WITH SLOW INTERNET############
-            ###############################################################
-            ###############################################################
+                ## get working directory
+                working_dir = os.getcwd()
+                print('WORKING DIR: ', working_dir)
 
-            start_time = time.time()  # Capture the start time
-            timeout = 60  # Set the timeout period to 60 seconds
+                ## get the new folder name from the temp_outputs folder
+                folder = os.listdir("./temp_outputs")
 
-            while True:
-                # List only directories in the specified path
-                folders = [f for f in os.listdir("./temp_outputs") if os.path.isdir(os.path.join("./temp_outputs", f))]
+                ## get only the folders that exist in the temp_outputs folder
+                folders = [f for f in folder if os.path.isdir(os.path.join("./temp_outputs", f))]
                 print('FOLDERS FOUND IN TEMP:', folders)
-                
-                # Check if the folder list is not empty or if the timeout has been reached
-                if folders or (time.time() - start_time) > timeout:
-                    break  # Exit the loop if folders are found or timeout has been reached
-                
-                time.sleep(5)  # Wait for 5 seconds before trying again
 
-            # Check the reason for the loop exit and act accordingly
-            if not folders:
-                print('Error: No folders found within the 60 seconds time frame.')
-                # Handle the error condition here
+                ###############################################################
+                ###############################################################
+                #####################FOR DEALING WITH SLOW INTERNET############
+                ###############################################################
+                ###############################################################
+
+                start_time = time.time()  # Capture the start time
+                timeout = 60  # Set the timeout period to 60 seconds
+
+                while True:
+                    # List only directories in the specified path
+                    folders = [f for f in os.listdir("./temp_outputs") if os.path.isdir(os.path.join("./temp_outputs", f))]
+                    print('FOLDERS FOUND IN TEMP:', folders)
+                    
+                    # Check if the folder list is not empty or if the timeout has been reached
+                    if folders or (time.time() - start_time) > timeout:
+                        break  # Exit the loop if folders are found or timeout has been reached
+                    
+                    time.sleep(5)  # Wait for 5 seconds before trying again
+
+                # Check the reason for the loop exit and act accordingly
+                if not folders:
+                    print('Error: No folders found within the 60 seconds time frame.')
+                    # Handle the error condition here
+                else:
+                    print('Folders have been found.')
+                    # Continue with the rest of your code
+                    
+                ###############################################################
+                ###############################################################
+                #####################FOR DEALING WITH SLOW INTERNET############
+                ###############################################################
+                ###############################################################
+
+                ## get the folder name
+                folder_name = folders[0]
+                # print('FOLDER NAME: ', folder_name)
+                
+                ## get the .mp4 file from the folder
+                video_file = os.listdir("./temp_outputs/" + folder_name)[0]
+                print('FOUND NEW VID FILE: ', video_file)
+                
+                ## upload the video file to S3
+                try:
+                    video_url = s3_upload_video(video_file, "temp_outputs/" + folder_name + "/" + video_file)
+                    print('Succesfully uploaded video from: ', video_url)
+                    ## then delete the folder
+                    os.system("rm -rf temp_outputs/" + folder_name)
+                    print(f"Deleted folder {folder_name}")
+                
+                except Exception as e:
+                    print(f"Error: {e}")
+                    return None
+                
+                ## save to database in Video table, providing the row_id as the data_entry_id
+                session = get_session()
+                
+                try:
+                    new_video = Video(
+                        job_id=job_id,
+                        audio_selection=passed_job_details['audio_selection'],
+                        # audio_row_id=passed_job_details['audio_row_id'],
+                        text_selection=passed_job_details['text_selection'],
+                        text_row_id=passed_job_details['text_row_id'],
+                        photo_selection=passed_job_details['photo_selection'],
+                        photo_row_id=passed_job_details['photo_row_id'],
+                        video_url=f'https://{BUCKET_NAME}.s3.amazonaws.com/{video_url}'
+                    )
+                    session.add(new_video)
+                    session.commit()
+                    session.close()
+                    ## yield the video_url
+                    s3_url=f'https://{BUCKET_NAME}.s3.amazonaws.com/{video_url}'
+                    yield f"data: {s3_url}\n\n"
+                    ## delete the job from the current_jobs dictionary
+                    del current_jobs[passed_job]
+            
+                except:
+                    session.rollback()
+                    raise
+
+                # Break the loop after sending the final status
+                break
+
             else:
-                print('Folders have been found.')
-                # Continue with the rest of your code
-                
-            ###############################################################
-            ###############################################################
-            #####################FOR DEALING WITH SLOW INTERNET############
-            ###############################################################
-            ###############################################################
+                # Handle any other statuses if necessary
+                yield f"data: {job_status_code}"
+                break  # Or continue, based on your requirements
 
+            time.sleep(1)  # Sleep at the end of the loop
 
-            ## get the folder name
-            folder_name = folders[0]
-            # print('FOLDER NAME: ', folder_name)
-            
-            ## get the .mp4 file from the folder
-            video_file = os.listdir("./temp_outputs/" + folder_name)[0]
-            print('FOUND NEW VID FILE: ', video_file)
-            
-            ## upload the video file to S3
-            try:
-                video_url = s3_upload_video(video_file, "temp_outputs/" + folder_name + "/" + video_file)
-                print('Succesfully uploaded video from: ', video_url)
-                ## then delete the folder
-                os.system("rm -rf temp_outputs/" + folder_name)
-                print(f"Deleted folder {folder_name}")
-            
-            except Exception as e:
-                print(f"Error: {e}")
-                return None
-            
-            ## save to database in Video table, providing the row_id as the data_entry_id
-            session = get_session()
-            try:
-                new_video = Video(
-                    job_id=job_id,
-                    audio_selection=passed_job_details['audio_selection'],
-                    # audio_row_id=passed_job_details['audio_row_id'],
-                    text_selection=passed_job_details['text_selection'],
-                    text_row_id=passed_job_details['text_row_id'],
-                    photo_selection=passed_job_details['photo_selection'],
-                    photo_row_id=passed_job_details['photo_row_id'],
-                    video_url=f'https://{BUCKET_NAME}.s3.amazonaws.com/{video_url}'
-                )
-                session.add(new_video)
-                session.commit()
-                session.close()
-                ## yield the video_url
-                s3_url=f'https://{BUCKET_NAME}.s3.amazonaws.com/{video_url}'
-                yield f"data: {s3_url}\n\n"
-                ## delete the job from the current_jobs dictionary
-                del current_jobs[passed_job]
-            
-            except:
-                session.rollback()
-                raise            
-        else:
-            job_status = str(passed_job_object.status().code)
-            print('OTHER job_status:', job_status)
-            yield f"data: {job_status}"
+        # After loop ends
+        yield "data: Done\n\n"    
         
-        yield f"data: {job_status}"
+    # def generate():
+    #     while str(passed_job_object.status().code) == "Status.STARTING":
+    #         job_status = str(passed_job_object.status().code)
+    #         print('STARTING job_status:', job_status)
+    #         yield f"data: {job_status}\n\n"
+    #         time.sleep(1)
+        
+    #     while str(passed_job_object.status().code) == "Status.PROCESSING":
+    #         job_status = str(passed_job_object.status().code)
+    #         print('PROCESSING job_status:', job_status)
+    #         yield f"data: {job_status}\n\n"
+    #         time.sleep(1)
+        
+    #     while str(passed_job_object.status().code) == "Status.FINISHED":
+    #         job_status = str(passed_job_object.status().code)
+    #         print('FINISHED job_status:', job_status)
+    #         yield f"data: {job_status}\n\n"
+            
+    #         time.sleep(5) # made this slower to allow for video download from remote server
+    #         ## if on a faster machine, get make this quicker - currently out of country so need to do this
+
+    #         ## get working directory
+    #         working_dir = os.getcwd()
+    #         print('WORKING DIR: ', working_dir)
+
+    #         ## get the new folder name from the temp_outputs folder
+    #         folder = os.listdir("./temp_outputs")
+
+    #         ## get only the folders that exist in the temp_outputs folder
+    #         folders = [f for f in folder if os.path.isdir(os.path.join("./temp_outputs", f))]
+    #         print('FOLDERS FOUND IN TEMP:', folders)
+
+    #         ###############################################################
+    #         ###############################################################
+    #         #####################FOR DEALING WITH SLOW INTERNET############
+    #         ###############################################################
+    #         ###############################################################
+
+    #         start_time = time.time()  # Capture the start time
+    #         timeout = 60  # Set the timeout period to 60 seconds
+
+    #         while True:
+    #             # List only directories in the specified path
+    #             folders = [f for f in os.listdir("./temp_outputs") if os.path.isdir(os.path.join("./temp_outputs", f))]
+    #             print('FOLDERS FOUND IN TEMP:', folders)
+                
+    #             # Check if the folder list is not empty or if the timeout has been reached
+    #             if folders or (time.time() - start_time) > timeout:
+    #                 break  # Exit the loop if folders are found or timeout has been reached
+                
+    #             time.sleep(5)  # Wait for 5 seconds before trying again
+
+    #         # Check the reason for the loop exit and act accordingly
+    #         if not folders:
+    #             print('Error: No folders found within the 60 seconds time frame.')
+    #             # Handle the error condition here
+    #         else:
+    #             print('Folders have been found.')
+    #             # Continue with the rest of your code
+                
+    #         ###############################################################
+    #         ###############################################################
+    #         #####################FOR DEALING WITH SLOW INTERNET############
+    #         ###############################################################
+    #         ###############################################################
+
+    #         ## get the folder name
+    #         folder_name = folders[0]
+    #         # print('FOLDER NAME: ', folder_name)
+            
+    #         ## get the .mp4 file from the folder
+    #         video_file = os.listdir("./temp_outputs/" + folder_name)[0]
+    #         print('FOUND NEW VID FILE: ', video_file)
+            
+    #         ## upload the video file to S3
+    #         try:
+    #             video_url = s3_upload_video(video_file, "temp_outputs/" + folder_name + "/" + video_file)
+    #             print('Succesfully uploaded video from: ', video_url)
+    #             ## then delete the folder
+    #             os.system("rm -rf temp_outputs/" + folder_name)
+    #             print(f"Deleted folder {folder_name}")
+            
+    #         except Exception as e:
+    #             print(f"Error: {e}")
+    #             return None
+            
+    #         ## save to database in Video table, providing the row_id as the data_entry_id
+    #         session = get_session()
+    #         try:
+    #             new_video = Video(
+    #                 job_id=job_id,
+    #                 audio_selection=passed_job_details['audio_selection'],
+    #                 # audio_row_id=passed_job_details['audio_row_id'],
+    #                 text_selection=passed_job_details['text_selection'],
+    #                 text_row_id=passed_job_details['text_row_id'],
+    #                 photo_selection=passed_job_details['photo_selection'],
+    #                 photo_row_id=passed_job_details['photo_row_id'],
+    #                 video_url=f'https://{BUCKET_NAME}.s3.amazonaws.com/{video_url}'
+    #             )
+    #             session.add(new_video)
+    #             session.commit()
+    #             session.close()
+    #             ## yield the video_url
+    #             s3_url=f'https://{BUCKET_NAME}.s3.amazonaws.com/{video_url}'
+    #             yield f"data: {s3_url}\n\n"
+    #             ## delete the job from the current_jobs dictionary
+    #             del current_jobs[passed_job]
+            
+    #         except:
+    #             session.rollback()
+    #             raise            
+    #     else:
+    #         job_status = str(passed_job_object.status().code)
+    #         print('OTHER job_status:', job_status)
+    #         yield f"data: {job_status}"
+        
+    #     yield f"data: {job_status}"
 
     return Response(stream_with_context(generate()), mimetype='text/event-stream')
 
@@ -1124,6 +1247,179 @@ def create_powerpoint_submit():
 
     return f'https://{BUCKET_NAME}.s3.amazonaws.com/{pptx_name}'
 
+
+## endpoint for combining attempt 2 
+@app.route('/view4/combine_slides', methods=['POST'])
+def combine_slides():
+
+    # try:
+    #     print('JSON RESPONSE: ', request.get_json())
+    #     return 'ok'
+    # except Exception as e:
+    #     print(f"SERVER Error: {e}")
+    #     return None
+
+    ## convert json response to python dictionary
+
+    try:
+        slides_data = request.get_json()
+        print('Data object received in dictionary form: ', slides_data)
+
+    except Exception as e:
+        print(f"SERVER Error: {e}")
+        return None
+
+    # raw_data = request.get_data(as_text=True) # Get the raw data from the request
+    # print('Raw Data Received:', raw_data)
+    
+    # # Strip enclosing double quotes and parse the JSON string
+    # if raw_data.startswith('"') and raw_data.endswith('"'):
+    #     raw_data = raw_data[1:-1]  # Remove the first and last character (the double quotes)
+    
+    # # Replace escaped quotes with regular quotes
+    # formatted_data = raw_data.replace('\\', '')
+
+    # print('Raw Data with No Quotes:', formatted_data)
+    
+    # slides_data = json.loads(formatted_data)
+    
+    print('Parsed Data:', slides_data)
+    print('Data Type:', type(slides_data))
+
+    prs = Presentation()
+    slide_layout = prs.slide_layouts[5]  # Using a blank slide layout
+
+    # Ensure that slides_data is a list
+    if not isinstance(slides_data, list):
+        raise ValueError("Data is not a list")
+
+    for slide_data in slides_data:
+
+        print('Working on PPT slide: ', slide_data['title'])
+
+        slide_title = slide_data['title']
+        slide_body_text = slide_data['body']
+        slide_video = slide_data['videoUrl']
+
+        normalized_text = slide_body_text.replace('\r\n', '\n').replace('\r', '\n')
+        normalized_text = html.unescape(normalized_text)
+        normalized_text = normalized_text.strip('"')
+
+        # Create a new slide
+        slide = prs.slides.add_slide(slide_layout)
+
+        # Set slide title
+        title = slide.shapes.title
+        title.text = slide_title
+
+        # Add body text
+        textbox = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(4), Inches(4))
+        text_frame = textbox.text_frame
+        p = text_frame.add_paragraph()
+        p.text = normalized_text
+
+        # Add video
+        ## first download video from s3
+        video_url = slide_video
+        video_name = video_url.split('/')[-1]
+        print('video_name:', video_name)
+        ## download video to /temp_outputs
+        s3_client.download_file(BUCKET_NAME, video_name, f"./temp_outputs/{video_name}")
+        video_path = f"./temp_outputs/{video_name}"
+        image_path = video_path + '.jpg'
+
+        def get_video_dimensions(video_path):
+            """Get the width and height of the video."""
+            cmd = [
+                'ffprobe', 
+                '-v', 'error',
+                '-select_streams', 'v:0',
+                '-show_entries', 'stream=width,height',
+                '-of', 'json',
+                video_path
+            ]
+            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if result.returncode != 0:
+                raise Exception("ffprobe error: " + result.stderr)
+            info = json.loads(result.stdout)
+            width = info['streams'][0]['width']
+            height = info['streams'][0]['height']
+            return width, height
+        
+        # Get the dimensions of the video
+        video_width, video_height = get_video_dimensions(video_path)
+
+        ppt_height = Inches(1.5)
+        aspect_ratio = video_width / video_height
+        ppt_width = ppt_height * aspect_ratio
+
+        # Positioning the video in the lower right corner of the slide
+        slide_width = prs.slide_width
+        slide_height = prs.slide_height
+
+        left = slide_width - ppt_width - Inches(0.5)  # 0.5 inches from the right side
+        top = slide_height - ppt_height - Inches(0.5)  # 0.5 inches from the bottom
+
+        # Use ffmpeg to extract a frame from the video
+        subprocess.run([
+            'ffmpeg',
+            '-i', video_path,
+            '-ss', '00:00:00',
+            '-frames:v', '1',
+            image_path
+        ])
+
+        slide.shapes.add_movie(
+            video_path, left, top, ppt_width, ppt_height, 
+            poster_frame_image=image_path, mime_type='video/mp4'
+        )
+
+        print('Finished on PPT slide: ', slide_data['title'])
+
+
+    ## pptx name should be title of slide with date/time stamp
+    now = datetime.datetime.now()
+    date_time = now.strftime("%m-%d-%Y_%H-%M-%S")
+    pptx_name = f'combined_test_{date_time}.pptx'
+
+    ## first save to local
+    print('Saving local version of combined...')
+    prs.save(f'temp_outputs/{pptx_name}')
+
+    ## save to s3
+    print('Uploading to S3 version of combined...')
+    s3_client.upload_file(f'temp_outputs/{pptx_name}', BUCKET_NAME, pptx_name)
+
+    ## save to database in Powerpoint table
+    session = get_session()
+    try:
+        new_powerpoint = Powerpoint(
+            slide_title=slide_title,
+            slide_body_text=slide_body_text,
+            slide_video_url=slide_video,
+            powerpoint_url=f'https://{BUCKET_NAME}.s3.amazonaws.com/{pptx_name}'
+        )
+        session.add(new_powerpoint)
+        session.commit()
+        session.close()
+    except:
+        session.rollback()
+        raise
+
+    ## then perform clean up
+
+    ## delete any file that ends with .pptx, jpg, or mp4 in ./temp_outputs
+    os.system("rm -rf temp_outputs/*.pptx")
+    print("Deleted all .pptx files in temp_outputs")
+    os.system("rm -rf temp_outputs/*.jpg")
+    print("Deleted all .jpg files in temp_outputs")
+    os.system("rm -rf temp_outputs/*.mp4")
+    print("Deleted all .mp4 files in temp_outputs")
+
+    jsonReturn = {'finalUrl': f'https://{BUCKET_NAME}.s3.amazonaws.com/{pptx_name}'}
+
+    return jsonReturn
+
 ## create an endpoint that takes in a list of URLs for PPTXs and then combines
 ## them into one PPTX
 @app.route('/view4/combine', methods=['GET', 'POST'])
@@ -1131,11 +1427,44 @@ def combine_powerpoint():
     ## get list of URLs from post request
     urls = request.form.getlist('pptx_urls[]')
     print('urls:', urls)
+
+    def add_slide_elements(target_slide, slide_title, slide_body_text, video_url, video_path, image_path):
+        # Set slide title
+        title = target_slide.shapes.title
+        title.text = slide_title
+
+        # Add body text
+        textbox = target_slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(4), Inches(4))
+        text_frame = textbox.text_frame
+        p = text_frame.add_paragraph()
+        p.text = slide_body_text
+
+        # Add video
+        # Assuming video dimensions and positioning are same for all videos
+        ppt_height = Inches(1.5)
+        aspect_ratio = 16 / 9  # Example aspect ratio
+        ppt_width = ppt_height * aspect_ratio
+        slide_width = prs.slide_width
+        slide_height = prs.slide_height
+        left = slide_width - ppt_width - Inches(0.5)
+        top = slide_height - ppt_height - Inches(0.5)
+
+        target_slide.shapes.add_movie(
+            video_path, left, top, ppt_width, ppt_height, 
+            poster_frame_image=image_path, mime_type='video/mp4'
+        )
+
+    # Create a new presentation to hold merged slides
+    final_prs = Presentation()
+    slide_layout = final_prs.slide_layouts[5]  # Using a blank slide layout
+
     ## download each file to ./temp_outputs
     for url in urls:
         pptx_name = url.split('/')[-1]
         print('pptx_name:', pptx_name)
         s3_client.download_file(BUCKET_NAME, pptx_name, f"./temp_outputs/{pptx_name}")
+
+
     ## combine the files
     prs = Presentation()
     for url in urls:
@@ -1144,6 +1473,10 @@ def combine_powerpoint():
         prs_temp = Presentation(f"./temp_outputs/{pptx_name}")
         for slide in prs_temp.slides:
             prs.slides.add_slide(slide)
+
+
+
+
     ## save the combined file to ./temp_outputs
     now = datetime.datetime.now()
     date_time = now.strftime("%m-%d-%Y_%H-%M-%S")
@@ -1176,6 +1509,8 @@ def combine_powerpoint():
     print("Deleted all .mp4 files in temp_outputs")
 
     return f'https://{BUCKET_NAME}.s3.amazonaws.com/{pptx_name}'
+
+
 
 @app.route('/view5')
 def view5():
