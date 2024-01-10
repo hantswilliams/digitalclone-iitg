@@ -27,8 +27,6 @@
     <h1> Completed </h1>
     <div id="final"></div>
 
-
-
     <script type="text/javascript">
 
         // ignore below error message from syntax highlighting
@@ -244,39 +242,12 @@
                 .then(response => response.json())
                 .then(data => {
                     console.log('Success combined all slides Part6:', data);
+                    document.getElementById('part6').innerHTML += 'Combined PPT URL: ' + data + '<br>';
                     callback(data);
                 })
                 .catch((error) => {
                     console.error('Error:', error);
                 });
-
-                // // Create a FormData object
-                // let formData = new FormData();
-
-                // // Append each URL to the formData with the correct key
-                // list_of_pptUrls.forEach(url => {
-                //     formData.append('pptx_urls[]', url);
-                // });
-
-                // formData.append('requires_formatting', 'false');
-
-                // // Make the fetch request with FormData
-                // fetch('/view4/combine', {
-                //     method: 'POST',
-                //     body: formData // FormData object as the body. Note: Don't set Content-Type header for FormData
-                // }).then(function(response) {
-                //     return response.text(); // This returns a promise
-                // }).then(function(responseText) {
-                //     // Now we have the actual response text
-                //     console.log('Response Text:', responseText);
-                //     var pptUrl = responseText;
-                //     document.getElementById('part6').innerHTML += 'Response Part 6: ' + responseText + '<br>';
-                //     // Pass the actual response text and data_audio to the callback
-                //     callback(responseText);
-                // }).catch(function(error) {
-                //     console.error('Error:', error);
-                //     document.getElementById('part6').innerHTML += 'Error: ' + error + '<br>';
-                // });
             }
 
             function final() {
