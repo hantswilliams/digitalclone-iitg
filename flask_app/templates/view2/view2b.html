@@ -2,18 +2,19 @@
 
 {% block content %}
 
+<h1 class="text-3xl font-bold mb-5"> Slide Creator </h1>
 
 <div class="flex justify-center items-start pt-6 w-full">
     <div class="flex w-full -mx-2">
         <!-- Form Column -->
         <div class="px-2 w-2/5">
-            <div class="bg-white shadow-md rounded px-8 pt-6 pb-8">
-                <h2 class="mb-6 text-center text-2xl font-extrabold text-gray-900">Create A PowerPoint Slide (DEMO)</h2>
+            <!-- <h2 class="mb-6 text-center text-2xl text-gray-900">Slide Content</h2> -->
+            <div class="bg-slate-300 shadow-md rounded-lg px-8 pt-6 pb-8 mb-4">
                 <form action="/view2b/submit/part1" method="post">
                     <!-- Container for dynamic slide input forms -->
                     <div id="slides-container">
                         <!-- Initial slide form -->
-                        <div class="slide-input-form mb-4 bg-white shadow-md rounded px-8 pt-6 pb-8">
+                        <div class="slide-input-form mb-4 bg-white shadow-md rounded-lg px-8 pt-6 pb-8">
                             <div class="mb-4">
                                 <label class="block text-gray-700 text-sm font-bold mb-2" for="slide-title-1">
                                     Slide Title
@@ -91,7 +92,7 @@
 
                     <!-- Button to add new slides -->
                     <div class="flex items-center justify-between mb-4">
-                        <button type="button" id="add-slide-button" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                        <button type="button" id="add-slide-button" class="bg-blue-700 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline mt-4">
                             Add Another Slide
                         </button>
                     </div>
@@ -106,30 +107,13 @@
             </div>
         </div>
 
-        <!-- Slide Preview Column -->
-        <!-- <div class="px-2 w-3/5">
-            <div class="mt-8">
-                <h3 class="text-lg font-semibold text-gray-900 mb-2">Slide Preview (estimate):</h3>
-                <div id="slide-preview" class="border rounded-lg p-4 bg-white" style="min-height: 300px;">
-                    <h4 id="preview-title" class="text-xl font-bold mb-4">[Slide Title]</h4>
-                    <div class="flex">
-                        <p id="preview-body" class="flex-grow text-gray-700 mr-4">[Slide Body]</p>
-                        <div id="preview-image" class="w-1/3">
-                            <img id="image-player" style="width: 200; height: 200;"></img>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div> -->
         <!-- Slide Preview Container -->
         <div id="preview-container" class="px-2 w-3/5">
             <div class="mt-8">
-                <h3 class="text-lg font-semibold text-gray-900 mb-2">Slide Previews (estimate):</h3>
+                <!-- <h3 class="text-lg font-semibold text-gray-900 mb-2">Slide Previews (estimate):</h3> -->
                 <!-- Container where individual slide previews will be inserted -->
             </div>
         </div>
-
-
 
     </div>
 </div>

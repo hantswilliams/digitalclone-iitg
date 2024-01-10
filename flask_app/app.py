@@ -46,6 +46,18 @@ def index():
 def view1():
     return render_template('view1/view1.html')
 
+@app.route('/view1b', methods=['GET', 'POST'])
+def view1b():
+
+    ## get images from server
+    session = get_session() # Get a new session
+    photo_data = session.query(Photo).all()
+    session.close() # Don't forget to close the session
+
+    print('photo_data:', photo_data)
+
+    return render_template('view1b/view1b.html', photo_data=photo_data)
+
 @app.route('/view1/audio/table', methods=['GET', 'POST'])
 def audio_table():
     row_id = request.form['row_id']
@@ -351,7 +363,6 @@ def image_update():
             'image_description': image_description}
     formatted_data = json.dumps(data, indent=4).lstrip()
     return render_template('view1/submitted_modal.html', data=formatted_data)
-
 
 @app.route('/view1/project/create', methods=['GET', 'POST'])
 def create_project():

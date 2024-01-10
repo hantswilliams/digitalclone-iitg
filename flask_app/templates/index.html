@@ -8,27 +8,44 @@
         htmx.config.debug = true;
     </script>
     <link rel="stylesheet" href="{{url_for('static',filename='dist/css/output.css')}}">
-    <title>My Webpage</title>
+    <title>IITG Dev</title>
 </head>
-<body class="flex">
+
+<body class="flex bg-gray-100">
 
     <!-- Sidebar -->
-    <div id="side">
-        <div class="w-64 h-screen text-white p-4 items-center">
+    <div id="side" class="bg-gray-800 shadow-lg">
+        <div class="w-64 h-screen text-gray-300 p-4 items-center">
+            <h1 class="text-xl font-semibold text-white p-4">IITG-MVP</h1>
             <div class="p-4">
-                <a href="/view1" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">1. Library </a>
+                <a href="/view1b" class="block bg-blue-500 hover:bg-blue-200 text-white font-bold py-2 px-4 rounded transition ease-in duration-150">Media Assets</a>
             </div>
             <div class="p-4">
-                <a href="/view2"class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">2. Create Vid</a>
+                <a href="/view2b" class="block bg-blue-500 hover:bg-blue-200 text-white font-bold py-2 px-4 rounded transition ease-in duration-150">Slide Builder</a>
             </div>
             <div class="p-4">
-                <a href="/view3" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">3. Vid Output</a>
+                <a href="/" class="block bg-blue-500 hover:bg-blue-200 text-white font-bold py-2 px-4 rounded transition ease-in duration-150">Outputs</a>
             </div>
             <div class="p-4">
-                <a href="/view2b" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">4. PPT Create</a>
+                <a href="/" class="block bg-blue-500 hover:bg-blue-200 text-white font-bold py-2 px-4 rounded transition ease-in duration-150">Settings</a>
             </div>
-            <div class="p-4">
-                <a href="/view5" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">5. PPT Output</a>
+
+            <hr class="border-gray-100 my-8">
+
+            <div class="p-2">
+                <a href="/view1" class="block bg-blue-200 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition ease-in duration-150">DEV Library</a>
+            </div>
+            <div class="p-2">
+                <a href="/view2" class="block bg-blue-200 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition ease-in duration-150">DEV Create Vid</a>
+            </div>
+            <div class="p-2">
+                <a href="/view3" class="block bg-blue-200 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition ease-in duration-150">DEV Vid Output</a>
+            </div>
+            <div class="p-2">
+                <a href="/view2b" class="block bg-blue-200 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition ease-in duration-150">DEV PPT Create</a>
+            </div>
+            <div class="p-2">
+                <a href="/view5" class="block bg-blue-200 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition ease-in duration-150">DEV PPT Output</a>
             </div>
         </div>
     </div>
@@ -41,9 +58,9 @@
         </div>
     </div>
 
-    <!-- Login/Logout Button -->
-    <!-- <div class="absolute top-0 right-0 m-4">
-        <button class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Login / Logout</button>
+    <!-- Login/Logout Button (Uncomment if needed) -->
+    <!-- <div class="fixed top-0 right-0 m-4">
+        <button class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition ease-in duration-150">Login / Logout</button>
     </div> -->
 
 </body>
