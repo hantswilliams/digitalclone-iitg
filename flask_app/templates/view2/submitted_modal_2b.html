@@ -29,8 +29,10 @@
 
     <script type="text/javascript">
 
-        // ignore below error message from syntax highlighting
+        /* the next line is not an error, might be erraneous by vccode linting */
+        /* so please ignore */
         var slides_data = {{ slides_data | tojson }};
+
         console.log('slides_data: ', slides_data)
         var pptUrls = [];
         var videoUrls = [];
@@ -242,7 +244,7 @@
                 .then(response => response.json())
                 .then(data => {
                     console.log('Success combined all slides Part6:', data);
-                    document.getElementById('part6').innerHTML += 'Combined PPT URL: ' + data + '<br>';
+                    document.getElementById('part6').innerHTML += 'Combined PPT URL: ' + data['finalUrl'] + '<br>';
                     callback(data);
                 })
                 .catch((error) => {
