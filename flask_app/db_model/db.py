@@ -7,6 +7,18 @@ import random
 
 # Define the base model
 Base = declarative_base()
+
+class Users(Base):
+    __tablename__ = 'users'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String)
+    email = Column(String)
+    name = Column(String)
+    profile = Column(String)
+    permissions = Column(String)
+    created_at = Column(DateTime, default=datetime.datetime.now())
+    updated_at = Column(DateTime, default=datetime.datetime.now(), onupdate=datetime.datetime.now())
+
 class Text(Base):
     __tablename__ = 'text'
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -110,6 +122,40 @@ def get_session():
 # FUnction to close the session
 def close_session(session):
     session.close()
+
+
+# Function to update or create a user
+def create_update_user(user):
+    """
+    ## user_id: user id
+    ## email: email address
+    ## name: name
+    ## profile: profile
+    ## permissions: permissions
+    """
+    session = get_session()
+    try:
+        user = session.query(Users).filter(Users.user_id == user['sub']).first()
+        if user:
+            user.email = user['email']
+            user.name = user['name']
+            user.profile = user['picture']
+            user.permissions = 'basic'
+        else:
+            new_user = Users(
+                user_id=user['sub'],
+                email=user['email'],
+                name=user['name'],
+                profile=user['picture'],
+                permissions='basic'
+            )
+            session.add(new_user)
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        return f'Error: {str(e)}'
+    session.close()
+    return 'Success'
 
 # Function to get a new session, queries the Project table, and returns all projects
 def get_projects():

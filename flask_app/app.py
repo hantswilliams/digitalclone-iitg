@@ -1,7 +1,8 @@
-from flask import Flask, render_template, request, Response, stream_with_context, jsonify
+from flask import Flask, render_template, request, Response, stream_with_context, jsonify, url_for, session, redirect
 from werkzeug.utils import secure_filename
 from db_model.db import Text, Photo, Audio, Video, Powerpoint, Project, ProjectTextAssociation
 from db_model.db import init_db, get_session, get_projects, get_project_data_associations, update_project_data_associations
+from db_model.db import create_update_user
 from utils.s3 import s3, s3_upload_video
 from utils.sadtalker import create_video_job
 import json
@@ -16,19 +17,27 @@ import subprocess
 import urllib
 import html
 
+from authlib.integrations.flask_client import OAuth
+from authlib.common.security import generate_token
 
 app = Flask(__name__)
 app.secret_key = 'super secret key'
+oauth = OAuth(app)
+
 
 init_db() # Initialize the database
 
 s3_client = s3 # Initialize the s3 client
+
 userid = os.getenv("PLAYHT_USERID")
 apikey = os.getenv("PLAYHT_SECRET")
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_OAUTH_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH_CLIENT_SECRET')
 BUCKET_NAME = 'iitg-mvp' # Replace with your bucket name
 
 # Dictionary to store job_id to Gradio job object mapping
 current_jobs = {}
+
 # Dictionary to store currently job details
 current_job_details = {}
 
@@ -40,7 +49,46 @@ def allowed_file(filename):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    if 'user' not in session:
+        return redirect('/google/')
+    else:
+        print('User logged in: ', session['user'])
+        return render_template('index.html', user=session['user'])
+
+@app.route('/google/')
+def google():
+    CONF_URL = 'https://accounts.google.com/.well-known/openid-configuration'
+    oauth.register(
+        name='google',
+        client_id=GOOGLE_CLIENT_ID,
+        client_secret=GOOGLE_CLIENT_SECRET,
+        server_metadata_url=CONF_URL,
+        client_kwargs={
+            'scope': 'openid email profile'
+        }
+    )
+    # Redirect to google_auth function note, if running locally on a non-google shell, do not need to override redirect_uri and can just use url_for as below
+    redirect_uri = url_for('google_auth', _external=True)
+    print('REDIRECT URL: ', redirect_uri)
+    session['nonce'] = generate_token()
+    ##, note: if running in google shell, need to override redirect_uri to the external web address of the shell, e.g.,
+    # redirect_uri = 'https://5000-cs-213132341638-default.cs-us-east1-pkhd.cloudshell.dev/google/auth/'
+    return oauth.google.authorize_redirect(redirect_uri, nonce=session['nonce'])
+
+@app.route('/google/auth/')
+def google_auth():
+    token = oauth.google.authorize_access_token()
+    user = oauth.google.parse_id_token(token, nonce=session['nonce'])
+    session['user'] = user
+    print(" Google User Information: ", session['user'])
+    create_update_user(user)
+    print(" Google User ", user)
+    return redirect('/')
+
+@app.route('/logout')
+def logout():
+    session.pop('user', None)
+    return redirect('/')
 
 @app.route('/view1')
 def view1():

@@ -1,6 +1,21 @@
 # Digitalclone-iitg
 
+
+## Updates: May 21, 2025
+
+- Voice Cloning 1-shot: 
+    - Zonos - https://huggingface.co/spaces/ginigen/VoiceClone-TTS 
+    - Index-TTS - https://github.com/index-tts/index-tts?tab=readme-ov-file 
+- Image to Video: 
+        - https://kdtalker.com/ 
+
+
 ## To do: 
+
+- Other ideas,software to test: 
+    - Heading talking: 
+        - https://real3dportrait.github.io/ 
+        - https://github.com/ZiqiaoPeng/SyncTalk 
 
 ## Partially done:
 - Have created ability to do multiple slides, need to update the javascript further in the submitted_modal_2b.html file so: 
