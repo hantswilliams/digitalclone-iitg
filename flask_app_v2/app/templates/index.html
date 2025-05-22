@@ -1,0 +1,144 @@
+{% extends "layout.html" %}
+
+{% block title %}Home - Digital Clone IITG{% endblock %}
+
+{% block content %}
+<div class="row align-items-center">
+    <div class="col-md-6">
+        <h1 class="display-4 mb-4">Create Digital Clones with AI</h1>
+        <p class="lead mb-4">
+            Transform your photos and text into talking head videos with our AI-powered platform.
+            Generate natural-sounding audio, create personalized videos, and build interactive presentations.
+        </p>
+        {% if not current_user.is_authenticated %}
+            <div class="d-grid gap-2 d-md-flex">
+                <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-lg me-md-2">Get Started</a>
+                <a href="#how-it-works" class="btn btn-outline-secondary btn-lg">Learn More</a>
+            </div>
+        {% else %}
+            <div class="d-grid gap-2 d-md-flex">
+                <a href="{{ url_for('views.projects') }}" class="btn btn-primary btn-lg me-md-2">My Projects</a>
+                <a href="{{ url_for('views.create_project') }}" class="btn btn-success btn-lg">New Project</a>
+            </div>
+        {% endif %}
+    </div>
+    <div class="col-md-6">
+        <img src="{{ url_for('static', filename='images/hero-image.svg') }}" alt="Digital Clone Illustration" class="img-fluid rounded shadow-lg">
+    </div>
+</div>
+
+<hr class="my-5">
+
+<section id="how-it-works" class="py-3">
+    <h2 class="text-center mb-5">How It Works</h2>
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="feature-icon bg-primary bg-gradient text-white rounded-circle mb-3">
+                        <i class="bi bi-mic-fill"></i>
+                    </div>
+                    <h3 class="card-title">1. Generate Audio</h3>
+                    <p class="card-text">Enter your text and choose a voice. Our AI will generate natural-sounding speech.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="feature-icon bg-primary bg-gradient text-white rounded-circle mb-3">
+                        <i class="bi bi-camera-video-fill"></i>
+                    </div>
+                    <h3 class="card-title">2. Create Video</h3>
+                    <p class="card-text">Upload a photo and combine it with your generated audio to create a talking head video.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="feature-icon bg-primary bg-gradient text-white rounded-circle mb-3">
+                        <i class="bi bi-file-earmark-slides-fill"></i>
+                    </div>
+                    <h3 class="card-title">3. Build Presentations</h3>
+                    <p class="card-text">Integrate your videos into presentations for e-learning or interactive content.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<hr class="my-5">
+
+<section id="features" class="py-3">
+    <h2 class="text-center mb-5">Key Features</h2>
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="d-flex">
+                <div class="flex-shrink-0">
+                    <div class="feature-icon bg-primary bg-gradient text-white rounded-circle">
+                        <i class="bi bi-stars"></i>
+                    </div>
+                </div>
+                <div class="flex-grow-1 ms-3">
+                    <h3>High-Quality Voice Generation</h3>
+                    <p>Natural-sounding voices in multiple languages and accents with PlayHT technology.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="d-flex">
+                <div class="flex-shrink-0">
+                    <div class="feature-icon bg-primary bg-gradient text-white rounded-circle">
+                        <i class="bi bi-person-video2"></i>
+                    </div>
+                </div>
+                <div class="flex-grow-1 ms-3">
+                    <h3>Realistic Talking Heads</h3>
+                    <p>SadTalker technology creates realistic mouth movements and expressions.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mt-4">
+            <div class="d-flex">
+                <div class="flex-shrink-0">
+                    <div class="feature-icon bg-primary bg-gradient text-white rounded-circle">
+                        <i class="bi bi-cloud-arrow-up"></i>
+                    </div>
+                </div>
+                <div class="flex-grow-1 ms-3">
+                    <h3>Cloud Storage</h3>
+                    <p>Securely store and access your content from anywhere.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mt-4">
+            <div class="d-flex">
+                <div class="flex-shrink-0">
+                    <div class="feature-icon bg-primary bg-gradient text-white rounded-circle">
+                        <i class="bi bi-collection-play"></i>
+                    </div>
+                </div>
+                <div class="flex-grow-1 ms-3">
+                    <h3>SCORM Compliant</h3>
+                    <p>Create e-learning content that integrates with any LMS.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+<style>
+    .feature-icon {
+        width: 4rem;
+        height: 4rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+    }
+</style>
+{% endblock %}

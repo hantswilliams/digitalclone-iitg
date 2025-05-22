@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    command: gunicorn --bind 0.0.0.0:5000 run:app
+    volumes:
+      - .:/app
+      - uploads_data:/app/app/static/uploads
+    ports:
+      - "5001:5000"
+    depends_on:
+      - db
+      - redis
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/digitalclone
+      - REDIS_URL=redis://redis:6379/0
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:-default_secret_key_change_in_production}
+    restart: always
+
+  celery_worker:
+    build: .
+    command: celery -A celery_worker.celery worker --loglevel=info
+    volumes:
+      - .:/app
+      - uploads_data:/app/app/static/uploads
+    depends_on:
+      web:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_started
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/digitalclone
+      - REDIS_URL=redis://redis:6379/0
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:-default_secret_key_change_in_production}
+    restart: always
+
+  db:
+    image: postgres:14
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=digitalclone
+    ports:
+      - "5433:5432"
+    restart: always
+
+  redis:
+    image: redis:7
+    ports:
+      - "6380:6379"
+    restart: always
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:

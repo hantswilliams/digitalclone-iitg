@@ -1,0 +1,48 @@
+flask_app_v2/
+├── app/
+│   ├── __init__.py                 # App factory pattern
+│   ├── config.py                   # Configuration management
+│   ├── extensions.py               # Flask extensions (SQLAlchemy, Celery)
+│   ├── api/                        # API endpoints
+│   │   ├── __init__.py
+│   │   ├── routes.py               # RESTful API routes
+│   │   └── schemas.py              # Request/response schemas
+│   ├── auth/                       # Authentication module
+│   │   ├── __init__.py
+│   │   ├── routes.py
+│   │   └── oauth.py                # Google OAuth integration
+│   ├── models/                     # Database models
+│   │   ├── __init__.py
+│   │   └── models.py               # SQLAlchemy models
+│   ├── services/                   # Business logic services
+│   │   ├── __init__.py
+│   │   ├── audio_service.py        # Audio processing (Bark, PlayHT)
+│   │   ├── video_service.py        # Video generation (SadTalker)
+│   │   ├── presentation_service.py # PPT generation
+│   │   ├── storage_service.py      # S3 and file storage
+│   │   └── project_service.py      # Project management
+│   ├── tasks/                      # Celery background tasks
+│   │   ├── __init__.py 
+│   │   ├── audio_tasks.py
+│   │   ├── video_tasks.py
+│   │   └── presentation_tasks.py
+│   ├── templates/                   # Jinja templates
+│   │   └── [existing templates]
+│   ├── static/                      # Static assets
+│   │   └── [existing static files]
+│   └── utils/                       # Utility functions
+│       ├── __init__.py
+│       ├── helpers.py
+│       └── logger.py                # Centralized logging
+├── migrations/                      # Database migrations
+├── tests/                           # Unit and integration tests
+│   ├── __init__.py
+│   ├── conftest.py                  # Test fixtures  
+│   ├── test_audio_service.py
+│   ├── test_video_service.py
+│   └── test_api.py
+├── .env.example                     # Example environment variables
+├── celery_worker.py                 # Celery worker entry point
+├── requirements.txt                 # Project dependencies
+├── run.py                           # Application entry point
+└── README.md                        # Documentation
