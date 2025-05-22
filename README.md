@@ -6,6 +6,7 @@
 - Voice Cloning 1-shot: 
     - Zonos - https://huggingface.co/spaces/ginigen/VoiceClone-TTS 
     - Index-TTS - https://github.com/index-tts/index-tts?tab=readme-ov-file 
+    - CosyVoice - https://github.com/FunAudioLLM/CosyVoice 
 - Image to Video: 
         - https://kdtalker.com/ 
 
