@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6">Welcome back, {{ user.name }}</h1>
+
+    <!-- Dashboard Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+        <div class="bg-white p-4 rounded shadow-md text-center">
+            <h2 class="text-xl font-semibold text-gray-700 mb-2">Texts</h2>
+            <p class="text-3xl font-bold text-blue-500">{{ text_count }}</p>
+        </div>
+        <div class="bg-white p-4 rounded shadow-md text-center">
+            <h2 class="text-xl font-semibold text-gray-700 mb-2">Photos</h2>
+            <p class="text-3xl font-bold text-green-500">{{ photo_count }}</p>
+        </div>
+        <div class="bg-white p-4 rounded shadow-md text-center">
+            <h2 class="text-xl font-semibold text-gray-700 mb-2">Audio</h2>
+            <p class="text-3xl font-bold text-yellow-500">{{ audio_count }}</p>
+        </div>
+        <div class="bg-white p-4 rounded shadow-md text-center">
+            <h2 class="text-xl font-semibold text-gray-700 mb-2">Videos</h2>
+            <p class="text-3xl font-bold text-red-500">{{ video_count }}</p>
+        </div>
+        <div class="bg-white p-4 rounded shadow-md text-center">
+            <h2 class="text-xl font-semibold text-gray-700 mb-2">Presentations</h2>
+            <p class="text-3xl font-bold text-purple-500">{{ presentation_count }}</p>
+        </div>
+    </div>
+
+    <!-- Recent Projects -->
+    <div class="mb-8">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-semibold">Recent Projects</h2>
+            <a href="{{ url_for('views.projects') }}" class="text-blue-500 hover:text-blue-700">View All</a>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for project in projects %}
+            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                {% if project.thumbnail %}
+                <img src="{{ project.thumbnail }}" alt="{{ project.name }}" class="w-full h-32 object-cover">
+                {% endif %}
+                <div class="p-4">
+                    <h3 class="text-lg font-semibold mb-2">{{ project.name }}</h3>
+                    <p class="text-gray-600 mb-3 text-sm">{{ project.description | truncate(100) }}</p>
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-gray-500">{{ project.updated_at.strftime('%Y-%m-%d') }}</span>
+                        <a href="{{ url_for('views.project_details', project_id=project.id) }}" class="text-blue-500 hover:text-blue-700">View</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            {% if not projects %}
+            <div class="col-span-3 text-center py-8">
+                <p class="text-gray-500">No projects yet.</p>
+                <a href="{{ url_for('views.create_project') }}" class="mt-4 inline-block bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                    Create Your First Project
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Recent Content -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Recent Videos -->
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold">Recent Videos</h2>
+            </div>
+            {% if recent_videos %}
+                <ul class="space-y-3">
+                {% for video in recent_videos %}
+                    <li class="border-b last:border-b-0 pb-2 last:pb-0">
+                        <div class="flex items-center">
+                            <div class="bg-red-100 p-2 rounded-md mr-3">
+                                <svg class="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path>
+                                    <path d="M14 6a2 2 0 012-2h2a2 2 0 012 2v8a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="font-medium">{{ video.name }}</p>
+                                <p class="text-sm text-gray-500">{{ video.created_at.strftime('%Y-%m-%d') }}</p>
+                            </div>
+                        </div>
+                    </li>
+                {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-gray-500 text-center py-4">No videos yet.</p>
+            {% endif %}
+        </div>
+
+        <!-- Recent Audio -->
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold">Recent Audio</h2>
+            </div>
+            {% if recent_audios %}
+                <ul class="space-y-3">
+                {% for audio in recent_audios %}
+                    <li class="border-b last:border-b-0 pb-2 last:pb-0">
+                        <div class="flex items-center">
+                            <div class="bg-yellow-100 p-2 rounded-md mr-3">
+                                <svg class="w-5 h-5 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clip-rule="evenodd"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="font-medium">{{ audio.name }}</p>
+                                <p class="text-sm text-gray-500">{{ audio.created_at.strftime('%Y-%m-%d') }}</p>
+                            </div>
+                        </div>
+                    </li>
+                {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-gray-500 text-center py-4">No audio recordings yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

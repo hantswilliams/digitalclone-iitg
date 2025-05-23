@@ -5,7 +5,7 @@ import os
 import datetime
 from werkzeug.utils import secure_filename
 from flask import Blueprint, render_template, redirect, url_for, session, request, current_app
-from flask_login import login_required
+from flask_login import login_required, current_user
 from app.models import Project, Text, Photo, Audio, Video, PowerPoint, User
 from app.forms import TextForm, PhotoForm, AudioGenerationForm, VideoGenerationForm, ProjectForm
 from app.extensions import db
@@ -19,6 +19,9 @@ views_bp = Blueprint('views', __name__)
 @views_bp.route('/')
 def index():
     """Homepage"""
+    # If user is already logged in, redirect to dashboard
+    if current_user.is_authenticated:
+        return redirect(url_for('views.dashboard'))
     return render_template('index.html')
 
 
@@ -67,7 +70,8 @@ def projects():
         error_flash('User not found')
         return redirect(url_for('views.index'))
     
-    projects = user.projects
+    # Get all projects for this user from the database
+    projects = Project.query.filter_by(user_id=user_id).all()
     return render_template('projects/index.html', projects=projects)
 
 
@@ -167,6 +171,167 @@ def delete_project(project_id):
         return redirect(url_for('views.project_details', project_id=project_id))
 
 
+@views_bp.route('/projects/<int:project_id>/add-text', methods=['POST'])
+@login_required
+def add_text_to_project(project_id):
+    """Add text to a project"""
+    user_id = session['user'].get('sub')
+    
+    # Check if project exists and belongs to current user
+    project = Project.query.filter_by(id=project_id, user_id=user_id).first_or_404()
+    
+    # Get the text content from the form
+    text_content = request.form.get('text_content')
+    
+    if not text_content:
+        error_flash('Text content is required')
+        return redirect(url_for('views.project_details', project_id=project_id))
+    
+    try:
+        # Create new text
+        text = Text(
+            user_id=user_id,
+            project_id=project_id,
+            text_content=text_content
+        )
+        
+        db.session.add(text)
+        db.session.commit()
+        
+        success_flash('Text added to project successfully')
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error adding text to project: {str(e)}")
+        error_flash('Error adding text to project')
+    
+    return redirect(url_for('views.project_details', project_id=project_id))
+
+
+@views_bp.route('/projects/<int:project_id>/upload-photo', methods=['POST'])
+@login_required
+def upload_photo_to_project(project_id):
+    """Upload photo to a project"""
+    user_id = session['user'].get('sub')
+    
+    # Check if project exists and belongs to current user
+    project = Project.query.filter_by(id=project_id, user_id=user_id).first_or_404()
+    
+    # Check if file was uploaded
+    if 'file' not in request.files:
+        error_flash('No file uploaded')
+        return redirect(url_for('views.project_details', project_id=project_id))
+    
+    file = request.files['file']
+    if file.filename == '':
+        error_flash('No file selected')
+        return redirect(url_for('views.project_details', project_id=project_id))
+    
+    if not file or not file.content_type.startswith('image/'):
+        error_flash('Only image files are allowed')
+        return redirect(url_for('views.project_details', project_id=project_id))
+    
+    try:
+        # Save the file
+        filename = secure_filename(file.filename)
+        timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+        new_filename = f"{timestamp}_{filename}"
+        
+        # Create storage path
+        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], 'photos', new_filename)
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        file.save(file_path)
+        
+        # Create photo record
+        photo = Photo(
+            user_id=user_id,
+            project_id=project_id,
+            photo_url=f'/uploads/photos/{new_filename}',
+            photo_description=request.form.get('description', '')
+        )
+        
+        db.session.add(photo)
+        db.session.commit()
+        
+        success_flash('Photo uploaded successfully')
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error uploading photo: {str(e)}")
+        error_flash(f'Error uploading photo: {str(e)}')
+    
+    return redirect(url_for('views.project_details', project_id=project_id))
+
+
+@views_bp.route('/projects/<int:project_id>/create-presentation', methods=['POST'])
+@login_required
+def create_presentation(project_id):
+    """Create presentation from project videos"""
+    user_id = session['user'].get('sub')
+    
+    # Check if project exists and belongs to current user
+    project = Project.query.filter_by(id=project_id, user_id=user_id).first_or_404()
+    
+    title = request.form.get('title')
+    video_ids = request.form.getlist('videos[]')
+    
+    if not title:
+        error_flash('Title is required')
+        return redirect(url_for('views.project_details', project_id=project_id))
+    
+    if not video_ids:
+        error_flash('No videos selected')
+        return redirect(url_for('views.project_details', project_id=project_id))
+    
+    try:
+        # Get the videos
+        videos = Video.query.filter(Video.id.in_(video_ids), Video.user_id == user_id).all()
+        
+        if not videos:
+            error_flash('No valid videos found')
+            return redirect(url_for('views.project_details', project_id=project_id))
+        
+        # Start async task for presentation creation
+        from app.tasks.presentation_tasks import create_presentation_task
+        
+        # Prepare slide data
+        slides_data = []
+        for video in videos:
+            slides_data.append({
+                'title': f"Video {video.id}",
+                'content': video.video_text,
+                'video_url': video.video_url
+            })
+        
+        task = create_presentation_task.delay(
+            title,
+            slides_data,
+            user_id
+        )
+        
+        # Create PowerPoint entry
+        ppt = PowerPoint(
+            user_id=user_id,
+            project_id=project_id,
+            title=title,
+            ppt_url=f"/pending/{task.id}",  # Will be updated when task completes
+            status="processing"
+        )
+        
+        db.session.add(ppt)
+        db.session.commit()
+        
+        success_flash('Presentation creation started. You will be notified when it completes.')
+        return redirect(url_for('views.task_status', task_id=task.id, return_to=url_for('views.project_details', project_id=project_id)))
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error creating presentation: {str(e)}")
+        error_flash(f'Error creating presentation: {str(e)}')
+    
+    return redirect(url_for('views.project_details', project_id=project_id))
+
+
 @views_bp.route('/texts')
 @login_required
 def texts():
@@ -221,6 +386,105 @@ def text_detail(text_id):
     audios = Audio.query.filter_by(text_id=text_id).all()
     
     return render_template('text_detail.html', text=text, audios=audios)
+
+
+@views_bp.route('/texts/<int:text_id>')
+@login_required
+def view_text(text_id):
+    """View text details"""
+    user_id = session['user'].get('sub')
+    
+    # Check if text exists and belongs to current user
+    text = Text.query.filter_by(id=text_id, user_id=user_id).first_or_404()
+    
+    return render_template('text_details.html', text=text)
+
+
+@views_bp.route('/texts/<int:text_id>/generate-audio')
+@login_required
+def text_generate_audio(text_id):
+    """Generate audio from text"""
+    user_id = session['user'].get('sub')
+    
+    # Check if text exists and belongs to current user
+    text = Text.query.filter_by(id=text_id, user_id=user_id).first_or_404()
+    
+    # Redirect to audio generation form
+    return redirect(url_for('views.audio_generation', text_id=text_id))
+
+
+@views_bp.route('/audio-generation/<int:text_id>', methods=['GET', 'POST'])
+@login_required
+def audio_generation(text_id):
+    """Audio generation form"""
+    user_id = session['user'].get('sub')
+    
+    # Check if text exists and belongs to current user
+    text = Text.query.filter_by(id=text_id, user_id=user_id).first_or_404()
+    
+    form = AudioGenerationForm()
+    
+    if form.validate_on_submit():
+        try:
+            # Start async task for audio generation
+            from app.tasks.audio_tasks import generate_audio_task
+            
+            task = generate_audio_task.delay(
+                text_id,
+                form.voice.data,
+                user_id
+            )
+            
+            success_flash('Audio generation started. You will be notified when it completes.')
+            return redirect(url_for('views.task_status', task_id=task.id, return_to=request.referrer))
+            
+        except Exception as e:
+            current_app.logger.error(f"Error starting audio generation task: {str(e)}")
+            error_flash(f'Error starting audio generation: {str(e)}')
+    
+    return render_template(
+        'audio_generation.html',
+        form=form,
+        text=text
+    )
+
+
+@views_bp.route('/audios/<int:audio_id>/generate-video')
+@login_required
+def generate_video(audio_id):
+    """Generate video from audio"""
+    user_id = session['user'].get('sub')
+    
+    # Check if audio exists and belongs to current user
+    audio = Audio.query.filter_by(id=audio_id, user_id=user_id).first_or_404()
+    
+    # Redirect to video generation form
+    return redirect(url_for('views.video_generation', audio_id=audio_id))
+
+
+@views_bp.route('/presentations/<int:ppt_id>/create-scorm')
+@login_required
+def create_scorm(ppt_id):
+    """Create SCORM package from presentation"""
+    user_id = session['user'].get('sub')
+    
+    # Check if presentation exists and belongs to current user
+    ppt = PowerPoint.query.filter_by(id=ppt_id, user_id=user_id).first_or_404()
+    
+    try:
+        # Start async task for SCORM creation
+        from app.tasks.presentation_tasks import create_scorm_task
+        
+        task = create_scorm_task.delay(ppt_id, user_id)
+        
+        success_flash('SCORM package creation started. You will be notified when it completes.')
+        return redirect(url_for('views.task_status', task_id=task.id, return_to=request.referrer))
+        
+    except Exception as e:
+        current_app.logger.error(f"Error starting SCORM creation task: {str(e)}")
+        error_flash(f'Error starting SCORM creation: {str(e)}')
+    
+    return redirect(url_for('views.project_details', project_id=ppt.project_id))
 
 
 @views_bp.route('/photos')
@@ -332,7 +596,7 @@ def generate_audio(text_id):
 
 @views_bp.route('/generate-video/<int:audio_id>', methods=['GET', 'POST'])
 @login_required
-def generate_video(audio_id):
+def video_generate_video(audio_id):
     """Generate video from audio and photo"""
     user_id = session['user'].get('sub')
     

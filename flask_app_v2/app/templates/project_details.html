@@ -1,242 +1,227 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
 
 {% block title %}{{ project.name }} - Digital Clone IITG{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>{{ project.name }}</h1>
-        <p class="text-muted">Created {{ project.created_at.strftime('%B %d, %Y') }}</p>
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-4">
+        <div>
+            <h1 class="text-3xl font-bold">{{ project.name }}</h1>
+            <p class="text-gray-600">Created {{ project.created_at.strftime('%B %d, %Y') }}</p>
+        </div>
+        <div>
+            <a href="{{ url_for('views.project_edit', project_id=project.id) }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded mr-2">
+                Edit
+            </a>
+            <button type="button" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded" onclick="document.getElementById('deleteProjectModal').classList.remove('hidden')">
+                Delete
+            </button>
+        </div>
     </div>
-    <div>
-        <a href="{{ url_for('project_edit', project_id=project.id) }}" class="btn btn-outline-primary me-2">
-            <i class="bi bi-pencil me-1"></i> Edit
-        </a>
-        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteProjectModal">
-            <i class="bi bi-trash me-1"></i> Delete
-        </button>
+
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <h2 class="text-xl font-semibold mb-2">Description</h2>
+        <p>{{ project.description or 'No description provided' }}</p>
     </div>
-</div>
 
-<div class="card mb-4">
-    <div class="card-body">
-        <h5 class="card-title">Description</h5>
-        <p class="card-text">{{ project.description or 'No description provided' }}</p>
-    </div>
-</div>
+    <div class="mb-6">
+        <div class="border-b border-gray-200">
+            <nav class="flex -mb-px">
+                <button class="text-blue-600 border-b-2 border-blue-500 py-4 px-6 font-medium" id="texts-tab" onclick="showTab('texts')">
+                    Texts
+                    <span class="bg-gray-200 text-gray-700 ml-2 py-1 px-2 rounded-full text-xs">{{ project.texts|length }}</span>
+                </button>
+                <button class="text-gray-600 hover:text-gray-700 py-4 px-6 font-medium" id="photos-tab" onclick="showTab('photos')">
+                    Photos
+                    <span class="bg-gray-200 text-gray-700 ml-2 py-1 px-2 rounded-full text-xs">{{ project.photos|length }}</span>
+                </button>
+                <button class="text-gray-600 hover:text-gray-700 py-4 px-6 font-medium" id="audios-tab" onclick="showTab('audios')">
+                    Audio
+                    <span class="bg-gray-200 text-gray-700 ml-2 py-1 px-2 rounded-full text-xs">{{ project.audios|length }}</span>
+                </button>
+                <button class="text-gray-600 hover:text-gray-700 py-4 px-6 font-medium" id="videos-tab" onclick="showTab('videos')">
+                    Videos
+                    <span class="bg-gray-200 text-gray-700 ml-2 py-1 px-2 rounded-full text-xs">{{ project.videos|length }}</span>
+                </button>
+                <button class="text-gray-600 hover:text-gray-700 py-4 px-6 font-medium" id="powerpoints-tab" onclick="showTab('powerpoints')">
+                    Presentations
+                    <span class="bg-gray-200 text-gray-700 ml-2 py-1 px-2 rounded-full text-xs">{{ project.powerpoints|length }}</span>
+                </button>
+            </nav>
+        </div>
 
-<ul class="nav nav-tabs mb-4" id="projectTabs" role="tablist">
-    <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="texts-tab" data-bs-toggle="tab" data-bs-target="#texts" type="button" role="tab" aria-controls="texts" aria-selected="true">
-            <i class="bi bi-file-text me-1"></i> Texts
-            <span class="badge bg-secondary rounded-pill">{{ project.texts|length }}</span>
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="photos-tab" data-bs-toggle="tab" data-bs-target="#photos" type="button" role="tab" aria-controls="photos" aria-selected="false">
-            <i class="bi bi-image me-1"></i> Photos
-            <span class="badge bg-secondary rounded-pill">{{ project.photos|length }}</span>
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="audios-tab" data-bs-toggle="tab" data-bs-target="#audios" type="button" role="tab" aria-controls="audios" aria-selected="false">
-            <i class="bi bi-file-earmark-music me-1"></i> Audio
-            <span class="badge bg-secondary rounded-pill">{{ project.audios|length }}</span>
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="videos-tab" data-bs-toggle="tab" data-bs-target="#videos" type="button" role="tab" aria-controls="videos" aria-selected="false">
-            <i class="bi bi-camera-video me-1"></i> Videos
-            <span class="badge bg-secondary rounded-pill">{{ project.videos|length }}</span>
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="powerpoints-tab" data-bs-toggle="tab" data-bs-target="#powerpoints" type="button" role="tab" aria-controls="powerpoints" aria-selected="false">
-            <i class="bi bi-file-earmark-slides me-1"></i> Presentations
-            <span class="badge bg-secondary rounded-pill">{{ project.powerpoints|length }}</span>
-        </button>
-    </li>
-</ul>
-
-<div class="tab-content" id="projectTabsContent">
-    <!-- Texts Tab -->
-    <div class="tab-pane fade show active" id="texts" role="tabpanel" aria-labelledby="texts-tab">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h3 class="h5">Text Content</h3>
-            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addTextModal">
-                <i class="bi bi-plus-lg me-1"></i> Add Text
+<!-- Tab content sections -->
+<div class="mt-4">
+    <!-- Texts Tab Content -->
+    <div id="texts-content" class="bg-white shadow rounded-lg p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold">Text Content</h3>
+            <button class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm" onclick="document.getElementById('addTextModal').classList.remove('hidden')">
+                Add Text
             </button>
         </div>
         
         {% if project.texts %}
-            <div class="list-group">
+            <div class="space-y-4">
                 {% for text in project.texts %}
-                    <div class="list-group-item">
-                        <div class="d-flex w-100 justify-content-between">
-                            <h5 class="mb-1">Text #{{ text.id }}</h5>
-                            <small>{{ text.created_at.strftime('%b %d, %Y') }}</small>
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <div class="flex justify-between items-center">
+                            <h5 class="font-medium">Text #{{ text.id }}</h5>
+                            <span class="text-sm text-gray-500">{{ text.created_at.strftime('%b %d, %Y') }}</span>
                         </div>
-                        <p class="mb-1">{{ text.text_content|truncate(100) }}</p>
-                        <div class="d-flex gap-2 mt-2">
-                            <a href="{{ url_for('view_text', text_id=text.id) }}" class="btn btn-sm btn-outline-primary">View</a>
-                            <a href="{{ url_for('generate_audio', text_id=text.id) }}" class="btn btn-sm btn-outline-success">Generate Audio</a>
-                            <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#removeTextModal" data-text-id="{{ text.id }}">Remove</button>
+                        <p class="my-2 text-gray-700">{{ text.text_content|truncate(100) }}</p>
+                        <div class="flex gap-2 mt-3">
+                            <a href="{{ url_for('views.view_text', text_id=text.id) }}" class="border border-blue-500 text-blue-500 hover:bg-blue-50 px-3 py-1 rounded text-sm">View</a>
+                            <a href="{{ url_for('views.text_generate_audio', text_id=text.id) }}" class="border border-green-500 text-green-500 hover:bg-green-50 px-3 py-1 rounded text-sm">Generate Audio</a>
+                            <button class="border border-red-500 text-red-500 hover:bg-red-50 px-3 py-1 rounded text-sm" onclick="showRemoveModal('removeTextModal', {{ text.id }})">Remove</button>
                         </div>
                     </div>
                 {% endfor %}
             </div>
         {% else %}
-            <div class="text-center py-4">
-                <p class="text-muted">No text content added to this project yet.</p>
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTextModal">
+            <div class="text-center py-8">
+                <p class="text-gray-500 mb-4">No text content added to this project yet.</p>
+                <button class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded" onclick="document.getElementById('addTextModal').classList.remove('hidden')">
                     Add Text
                 </button>
             </div>
         {% endif %}
     </div>
     
-    <!-- Photos Tab -->
-    <div class="tab-pane fade" id="photos" role="tabpanel" aria-labelledby="photos-tab">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h3 class="h5">Photos</h3>
-            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addPhotoModal">
-                <i class="bi bi-plus-lg me-1"></i> Upload Photo
+    <!-- Photos Tab Content -->
+    <div id="photos-content" class="bg-white shadow rounded-lg p-6 hidden">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold">Photos</h3>
+            <button class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm" onclick="document.getElementById('addPhotoModal').classList.remove('hidden')">
+                Upload Photo
             </button>
         </div>
         
         {% if project.photos %}
-            <div class="row row-cols-1 row-cols-md-3 g-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {% for photo in project.photos %}
-                    <div class="col">
-                        <div class="card h-100">
-                            <img src="{{ photo.photo_url }}" class="card-img-top" alt="Photo #{{ photo.id }}">
-                            <div class="card-body">
-                                <h5 class="card-title">Photo #{{ photo.id }}</h5>
-                                <p class="card-text text-muted">{{ photo.photo_description or 'No description' }}</p>
-                            </div>
-                            <div class="card-footer bg-transparent">
-                                <button class="btn btn-sm btn-outline-danger w-100" data-bs-toggle="modal" data-bs-target="#removePhotoModal" data-photo-id="{{ photo.id }}">
-                                    <i class="bi bi-trash me-1"></i> Remove
-                                </button>
-                            </div>
+                    <div class="border border-gray-200 rounded-lg overflow-hidden">
+                        <img src="{{ photo.photo_url }}" class="w-full h-48 object-cover" alt="Photo #{{ photo.id }}">
+                        <div class="p-4">
+                            <h5 class="font-medium">Photo #{{ photo.id }}</h5>
+                            <p class="text-gray-500 text-sm mt-1">{{ photo.photo_description or 'No description' }}</p>
+                            <button class="w-full border border-red-500 text-red-500 hover:bg-red-50 px-3 py-1 rounded text-sm mt-3" onclick="showRemoveModal('removePhotoModal', {{ photo.id }})">
+                                Remove
+                            </button>
                         </div>
                     </div>
                 {% endfor %}
             </div>
         {% else %}
-            <div class="text-center py-4">
-                <p class="text-muted">No photos added to this project yet.</p>
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPhotoModal">
+            <div class="text-center py-8">
+                <p class="text-gray-500 mb-4">No photos added to this project yet.</p>
+                <button class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded" onclick="document.getElementById('addPhotoModal').classList.remove('hidden')">
                     Upload Photo
                 </button>
             </div>
         {% endif %}
     </div>
     
-    <!-- Audios Tab -->
-    <div class="tab-pane fade" id="audios" role="tabpanel" aria-labelledby="audios-tab">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h3 class="h5">Audio Files</h3>
+    <!-- Audios Tab Content -->
+    <div id="audios-content" class="bg-white shadow rounded-lg p-6 hidden">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold">Audio Files</h3>
         </div>
         
         {% if project.audios %}
-            <div class="list-group">
+            <div class="space-y-4">
                 {% for audio in project.audios %}
-                    <div class="list-group-item">
-                        <div class="d-flex w-100 justify-content-between">
-                            <h5 class="mb-1">Audio #{{ audio.id }}</h5>
-                            <small>{{ audio.created_at.strftime('%b %d, %Y') }}</small>
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <div class="flex justify-between items-center">
+                            <h5 class="font-medium">Audio #{{ audio.id }}</h5>
+                            <span class="text-sm text-gray-500">{{ audio.created_at.strftime('%b %d, %Y') }}</span>
                         </div>
-                        <p class="mb-1">{{ audio.audio_text|truncate(100) }}</p>
-                        <p class="mb-1"><small class="text-muted">Voice: {{ audio.voice }}</small></p>
+                        <p class="my-2 text-gray-700">{{ audio.audio_text|truncate(100) }}</p>
+                        <p class="text-sm text-gray-500 mb-2">Voice: {{ audio.voice }}</p>
                         <div class="mt-2">
-                            <audio controls class="w-100">
+                            <audio controls class="w-full">
                                 <source src="{{ audio.audio_url }}" type="audio/mpeg">
                                 Your browser does not support the audio element.
                             </audio>
                         </div>
-                        <div class="d-flex gap-2 mt-2">
-                            <a href="{{ url_for('generate_video', audio_id=audio.id) }}" class="btn btn-sm btn-outline-success">Generate Video</a>
-                            <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#removeAudioModal" data-audio-id="{{ audio.id }}">Remove</button>
+                        <div class="flex gap-2 mt-3">
+                            <a href="{{ url_for('views.generate_video', audio_id=audio.id) }}" class="border border-green-500 text-green-500 hover:bg-green-50 px-3 py-1 rounded text-sm">Generate Video</a>
+                            <button class="border border-red-500 text-red-500 hover:bg-red-50 px-3 py-1 rounded text-sm" onclick="showRemoveModal('removeAudioModal', {{ audio.id }})">Remove</button>
                         </div>
                     </div>
                 {% endfor %}
             </div>
         {% else %}
-            <div class="text-center py-4">
-                <p class="text-muted">No audio files in this project yet.</p>
-                <p>Add text content and generate audio from the Texts tab.</p>
+            <div class="text-center py-8">
+                <p class="text-gray-500 mb-2">No audio files in this project yet.</p>
+                <p class="text-gray-400">Add text content and generate audio from the Texts tab.</p>
             </div>
         {% endif %}
     </div>
     
-    <!-- Videos Tab -->
-    <div class="tab-pane fade" id="videos" role="tabpanel" aria-labelledby="videos-tab">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h3 class="h5">Videos</h3>
+    <!-- Videos Tab Content -->
+    <div id="videos-content" class="bg-white shadow rounded-lg p-6 hidden">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold">Videos</h3>
         </div>
         
         {% if project.videos %}
-            <div class="row row-cols-1 row-cols-md-2 g-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {% for video in project.videos %}
-                    <div class="col">
-                        <div class="card h-100">
-                            <div class="card-body">
-                                <h5 class="card-title">Video #{{ video.id }}</h5>
-                                <p class="card-text text-muted">{{ video.video_text|truncate(100) }}</p>
-                                <div class="ratio ratio-16x9 mt-2">
-                                    <video controls>
-                                        <source src="{{ video.video_url }}" type="video/mp4">
-                                        Your browser does not support the video element.
-                                    </video>
-                                </div>
+                    <div class="border border-gray-200 rounded-lg overflow-hidden">
+                        <div class="p-4">
+                            <h5 class="font-medium">Video #{{ video.id }}</h5>
+                            <p class="text-gray-500 text-sm mt-1">{{ video.video_text|truncate(100) }}</p>
+                            <div class="aspect-w-16 aspect-h-9 mt-3">
+                                <video controls class="w-full">
+                                    <source src="{{ video.video_url }}" type="video/mp4">
+                                    Your browser does not support the video element.
+                                </video>
                             </div>
-                            <div class="card-footer bg-transparent">
-                                <button class="btn btn-sm btn-outline-danger w-100" data-bs-toggle="modal" data-bs-target="#removeVideoModal" data-video-id="{{ video.id }}">
-                                    <i class="bi bi-trash me-1"></i> Remove
-                                </button>
-                            </div>
+                            <button class="w-full border border-red-500 text-red-500 hover:bg-red-50 px-3 py-1 rounded text-sm mt-3" onclick="showRemoveModal('removeVideoModal', {{ video.id }})">
+                                Remove
+                            </button>
                         </div>
                     </div>
                 {% endfor %}
             </div>
         {% else %}
-            <div class="text-center py-4">
-                <p class="text-muted">No videos in this project yet.</p>
-                <p>Generate videos from the Audio tab using photos.</p>
+            <div class="text-center py-8">
+                <p class="text-gray-500 mb-2">No videos in this project yet.</p>
+                <p class="text-gray-400">Generate videos from the Audio tab using photos.</p>
             </div>
         {% endif %}
     </div>
     
-    <!-- Presentations Tab -->
-    <div class="tab-pane fade" id="powerpoints" role="tabpanel" aria-labelledby="powerpoints-tab">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h3 class="h5">Presentations</h3>
-            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#createPresentationModal">
-                <i class="bi bi-plus-lg me-1"></i> Create Presentation
+    <!-- Presentations Tab Content -->
+    <div id="powerpoints-content" class="bg-white shadow rounded-lg p-6 hidden">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold">Presentations</h3>
+            <button class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm" onclick="document.getElementById('createPresentationModal').classList.remove('hidden')">
+                Create Presentation
             </button>
         </div>
         
         {% if project.powerpoints %}
-            <div class="list-group">
+            <div class="space-y-4">
                 {% for ppt in project.powerpoints %}
-                    <div class="list-group-item">
-                        <div class="d-flex w-100 justify-content-between">
-                            <h5 class="mb-1">{{ ppt.title }}</h5>
-                            <small>{{ ppt.created_at.strftime('%b %d, %Y') }}</small>
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <div class="flex justify-between items-center">
+                            <h5 class="font-medium">{{ ppt.title }}</h5>
+                            <span class="text-sm text-gray-500">{{ ppt.created_at.strftime('%b %d, %Y') }}</span>
                         </div>
-                        <div class="d-flex gap-2 mt-2">
-                            <a href="{{ ppt.ppt_url }}" class="btn btn-sm btn-outline-primary" target="_blank">Download</a>
-                            <a href="{{ url_for('create_scorm', ppt_id=ppt.id) }}" class="btn btn-sm btn-outline-success">Create SCORM</a>
-                            <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#removePPTModal" data-ppt-id="{{ ppt.id }}">Remove</button>
+                        <div class="flex gap-2 mt-3">
+                            <a href="{{ ppt.ppt_url }}" class="border border-blue-500 text-blue-500 hover:bg-blue-50 px-3 py-1 rounded text-sm" target="_blank">Download</a>
+                            <a href="{{ url_for('views.create_scorm', ppt_id=ppt.id) }}" class="border border-green-500 text-green-500 hover:bg-green-50 px-3 py-1 rounded text-sm">Create SCORM</a>
+                            <button class="border border-red-500 text-red-500 hover:bg-red-50 px-3 py-1 rounded text-sm" onclick="showRemoveModal('removePPTModal', {{ ppt.id }})">Remove</button>
                         </div>
                     </div>
                 {% endfor %}
             </div>
         {% else %}
-            <div class="text-center py-4">
-                <p class="text-muted">No presentations in this project yet.</p>
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createPresentationModal">
+            <div class="text-center py-8">
+                <p class="text-gray-500 mb-4">No presentations in this project yet.</p>
+                <button class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded" onclick="document.getElementById('createPresentationModal').classList.remove('hidden')">
                     Create Presentation
                 </button>
             </div>
@@ -246,118 +231,144 @@
 
 <!-- Modals -->
 <!-- Delete Project Modal -->
-<div class="modal fade" id="deleteProjectModal" tabindex="-1" aria-labelledby="deleteProjectModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="deleteProjectModalLabel">Delete Project</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<div class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center hidden z-50" id="deleteProjectModal">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-900">Delete Project</h3>
+                <button type="button" class="text-gray-400 hover:text-gray-500" onclick="document.getElementById('deleteProjectModal').classList.add('hidden')">
+                    <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                    </svg>
+                </button>
             </div>
-            <div class="modal-body">
-                <p>Are you sure you want to delete "{{ project.name }}"? This action cannot be undone.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form action="{{ url_for('delete_project', project_id=project.id) }}" method="post">
-                    <button type="submit" class="btn btn-danger">Delete</button>
-                </form>
-            </div>
+        </div>
+        <div class="px-6 py-4">
+            <p class="text-gray-700">Are you sure you want to delete "{{ project.name }}"? This action cannot be undone.</p>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200 flex justify-end space-x-4">
+            <button type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded" onclick="document.getElementById('deleteProjectModal').classList.add('hidden')">
+                Cancel
+            </button>
+            <form action="{{ url_for('views.delete_project', project_id=project.id) }}" method="post">
+                <button type="submit" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded">Delete</button>
+            </form>
         </div>
     </div>
 </div>
 
 <!-- Add Text Modal -->
-<div class="modal fade" id="addTextModal" tabindex="-1" aria-labelledby="addTextModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="addTextModalLabel">Add Text</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<div class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center hidden z-50" id="addTextModal">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-900">Add Text</h3>
+                <button type="button" class="text-gray-400 hover:text-gray-500" onclick="document.getElementById('addTextModal').classList.add('hidden')">
+                    <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                    </svg>
+                </button>
             </div>
-            <form action="{{ url_for('add_text_to_project', project_id=project.id) }}" method="post">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="textContent" class="form-label">Text Content</label>
-                        <textarea class="form-control" id="textContent" name="text_content" rows="6" required></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Add</button>
-                </div>
-            </form>
         </div>
+        <form action="{{ url_for('views.add_text_to_project', project_id=project.id) }}" method="post">
+            <div class="px-6 py-4">
+                <div class="mb-4">
+                    <label for="textContent" class="block text-sm font-medium text-gray-700 mb-1">Text Content</label>
+                    <textarea class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" id="textContent" name="text_content" rows="6" required></textarea>
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-200 flex justify-end space-x-4">
+                <button type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded" onclick="document.getElementById('addTextModal').classList.add('hidden')">
+                    Cancel
+                </button>
+                <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Add</button>
+            </div>
+        </form>
     </div>
 </div>
 
 <!-- Add Photo Modal -->
-<div class="modal fade" id="addPhotoModal" tabindex="-1" aria-labelledby="addPhotoModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="addPhotoModalLabel">Upload Photo</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<div class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center hidden z-50" id="addPhotoModal">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-900">Upload Photo</h3>
+                <button type="button" class="text-gray-400 hover:text-gray-500" onclick="document.getElementById('addPhotoModal').classList.add('hidden')">
+                    <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                    </svg>
+                </button>
             </div>
-            <form action="{{ url_for('upload_photo_to_project', project_id=project.id) }}" method="post" enctype="multipart/form-data">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="photoFile" class="form-label">Select Photo</label>
-                        <input class="form-control" type="file" id="photoFile" name="file" accept="image/*" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="photoDescription" class="form-label">Description (optional)</label>
-                        <input type="text" class="form-control" id="photoDescription" name="description">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Upload</button>
-                </div>
-            </form>
         </div>
+        <form action="{{ url_for('views.upload_photo_to_project', project_id=project.id) }}" method="post" enctype="multipart/form-data">
+            <div class="px-6 py-4">
+                <div class="mb-4">
+                    <label for="photoFile" class="block text-sm font-medium text-gray-700 mb-1">Select Photo</label>
+                    <input class="w-full border-gray-300 rounded-md shadow-sm text-sm" type="file" id="photoFile" name="file" accept="image/*" required>
+                </div>
+                <div class="mb-4">
+                    <label for="photoDescription" class="block text-sm font-medium text-gray-700 mb-1">Description (optional)</label>
+                    <input type="text" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" id="photoDescription" name="description">
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-200 flex justify-end space-x-4">
+                <button type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded" onclick="document.getElementById('addPhotoModal').classList.add('hidden')">
+                    Cancel
+                </button>
+                <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Upload</button>
+            </div>
+        </form>
     </div>
 </div>
 
 <!-- Create Presentation Modal -->
-<div class="modal fade" id="createPresentationModal" tabindex="-1" aria-labelledby="createPresentationModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="createPresentationModalLabel">Create Presentation</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<div class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center hidden z-50" id="createPresentationModal">
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-900">Create Presentation</h3>
+                <button type="button" class="text-gray-400 hover:text-gray-500" onclick="document.getElementById('createPresentationModal').classList.add('hidden')">
+                    <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                    </svg>
+                </button>
             </div>
-            <form action="{{ url_for('create_presentation', project_id=project.id) }}" method="post">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="presentationTitle" class="form-label">Title</label>
-                        <input type="text" class="form-control" id="presentationTitle" name="title" required>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Select Videos to Include</label>
-                        <div class="list-group">
-                            {% for video in project.videos %}
-                                <label class="list-group-item">
-                                    <input class="form-check-input me-1" type="checkbox" name="videos[]" value="{{ video.id }}">
-                                    Video #{{ video.id }} - {{ video.video_text|truncate(50) }}
-                                </label>
-                            {% endfor %}
-                        </div>
-                        {% if not project.videos %}
-                            <div class="alert alert-warning mt-2">
-                                No videos available. Create videos first to include in the presentation.
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary" {% if not project.videos %}disabled{% endif %}>Create</button>
-                </div>
-            </form>
         </div>
+        <form action="{{ url_for('views.create_presentation', project_id=project.id) }}" method="post">
+            <div class="px-6 py-4">
+                <div class="mb-4">
+                    <label for="presentationTitle" class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                    <input type="text" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" id="presentationTitle" name="title" required>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Select Videos to Include</label>
+                    <div class="space-y-2">
+                        {% for video in project.videos %}
+                            <label class="flex items-center p-3 border border-gray-200 rounded">
+                                <input class="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" type="checkbox" name="videos[]" value="{{ video.id }}">
+                                <span class="text-sm">Video #{{ video.id }} - {{ video.video_text|truncate(50) }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                    {% if not project.videos %}
+                        <div class="mt-2 p-4 bg-yellow-50 border border-yellow-100 rounded-md">
+                            <p class="text-yellow-800 text-sm">No videos available. Create videos first to include in the presentation.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-200 flex justify-end space-x-4">
+                <button type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded" onclick="document.getElementById('createPresentationModal').classList.add('hidden')">
+                    Cancel
+                </button>
+                <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded" {% if not project.videos %}disabled{% endif %}>Create</button>
+            </div>
+        </form>
     </div>
 </div>
+
+<!-- Remove resource modals will be dynamically handled with JavaScript -->
 {% endblock %}
 
 {% block head_extra %}
@@ -366,20 +377,54 @@
 
 {% block scripts %}
 <script>
-    // Initialize all modals with data attributes
-    document.addEventListener('DOMContentLoaded', function() {
-        const removeTextModal = document.getElementById('removeTextModal');
-        if (removeTextModal) {
-            removeTextModal.addEventListener('show.bs.modal', function (event) {
-                const button = event.relatedTarget;
-                const textId = button.getAttribute('data-text-id');
-                const form = removeTextModal.querySelector('form');
-                form.action = "{{ url_for('remove_text_from_project', project_id=project.id) }}".replace('__TEXT_ID__', textId);
-            });
-        }
+    // Tab switching functionality
+    function showTab(tabName) {
+        // Hide all content tabs
+        const tabContentIds = ['texts-content', 'photos-content', 'audios-content', 'videos-content', 'powerpoints-content'];
+        tabContentIds.forEach(id => {
+            document.getElementById(id).classList.add('hidden');
+        });
+
+        // Deactivate all tab buttons
+        const tabButtons = document.querySelectorAll('nav button');
+        tabButtons.forEach(button => {
+            button.classList.remove('text-blue-600', 'border-b-2', 'border-blue-500');
+            button.classList.add('text-gray-600', 'hover:text-gray-700');
+        });
         
-        // Similar event listeners for other remove modals
-        // ...
+        // Activate the selected tab
+        document.getElementById(`${tabName}-tab`).classList.add('text-blue-600', 'border-b-2', 'border-blue-500');
+        document.getElementById(`${tabName}-tab`).classList.remove('text-gray-600', 'hover:text-gray-700');
+        document.getElementById(`${tabName}-content`).classList.remove('hidden');
+    }
+    
+    // Modal functionality
+    function showModal(modalId) {
+        document.getElementById(modalId).classList.remove('hidden');
+    }
+    
+    function hideModal(modalId) {
+        document.getElementById(modalId).classList.add('hidden');
+    }
+
+    function showRemoveModal(modalId, itemId) {
+        // Set the item ID in the modal for deletion
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            // Find the form inside the modal and update its action
+            const form = modal.querySelector('form');
+            if (form && form.dataset.urlTemplate) {
+                form.action = form.dataset.urlTemplate.replace('__ID__', itemId);
+            }
+            
+            // Show the modal
+            modal.classList.remove('hidden');
+        }
+    }
+    
+    // Show texts tab by default
+    document.addEventListener('DOMContentLoaded', () => {
+        showTab('texts');
     });
 </script>
 {% endblock %}
