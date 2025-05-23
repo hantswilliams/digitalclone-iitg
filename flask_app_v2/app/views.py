@@ -191,11 +191,16 @@ def add_text_to_project(project_id):
         # Create new text
         text = Text(
             user_id=user_id,
-            project_id=project_id,
             text_content=text_content
         )
         
+        # Add text to database first
         db.session.add(text)
+        db.session.flush()  # This assigns an ID to the text object
+        
+        # Associate the text with the project using the many-to-many relationship
+        project.texts.append(text)
+        
         db.session.commit()
         
         success_flash('Text added to project successfully')
