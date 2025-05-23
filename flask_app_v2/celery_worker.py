@@ -8,8 +8,11 @@ from app.config import config_by_name
 from flask import Flask
 from app.extensions import db
 
-# Load environment variables
-load_dotenv()
+# Load environment variables - try .env.dev first for local development
+if os.path.exists('.env.dev'):
+    load_dotenv('.env.dev')
+else:
+    load_dotenv()
 
 # Use a minimal app configuration for the Celery worker to avoid route conflicts
 def create_celery_app():
@@ -22,8 +25,9 @@ def create_celery_app():
     # Initialize only the required extensions
     db.init_app(app)
     
-    # Initialize Celery with explicit Redis URL
-    redis_url = 'redis://redis:6379/0'
+    # Initialize Celery with Redis URL from environment
+    redis_url = os.getenv('REDIS_URL', 'redis://redis:6379/0')
+    print(f"Celery worker using Redis URL: {redis_url}")
     celery.conf.update(broker_url=redis_url)
     celery.conf.update(result_backend=redis_url)
     
@@ -38,8 +42,9 @@ def create_celery_app():
     with app.app_context():
         try:
             db.create_all()
+            print("Celery worker database tables created successfully")
         except Exception as e:
-            app.logger.error(f"Database initialization error in celery worker: {str(e)}")
+            print(f"Database initialization error in celery worker: {str(e)}")
     
     return app
 

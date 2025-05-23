@@ -70,15 +70,35 @@ flask_app_v2/
 
 ## Development
 
-1. Set the environment to development mode:
+### Local Development (No Docker for Flask)
+
+We provide a faster development setup where you can run the Flask application locally while keeping supporting services (Redis, PostgreSQL) in Docker containers:
+
+1. Start the development environment:
    ```
-   export FLASK_ENV=development
+   ./dev.sh
    ```
 
-2. Run tests:
+2. Access the application at http://localhost:5000
+
+3. Check the status of services:
    ```
-   pytest
+   ./status_dev.sh
    ```
+
+4. Stop the development environment:
+   ```
+   ./stop_dev.sh
+   ```
+
+See `DEVELOPMENT.md` for detailed instructions and troubleshooting.
+
+### Docker Development
+
+For fully containerized development:
+```
+docker-compose up -d
+```
 
 ## Deployment
 
