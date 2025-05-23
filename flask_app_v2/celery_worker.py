@@ -22,10 +22,10 @@ def create_celery_app():
     # Initialize only the required extensions
     db.init_app(app)
     
-    # Initialize Celery
-    app_config = app.config
-    celery.conf.update(broker_url=app_config.get('CELERY_BROKER_URL', 'redis://redis:6379/0'))
-    celery.conf.update(result_backend=app_config.get('CELERY_RESULT_BACKEND', 'redis://redis:6379/0'))
+    # Initialize Celery with explicit Redis URL
+    redis_url = 'redis://redis:6379/0'
+    celery.conf.update(broker_url=redis_url)
+    celery.conf.update(result_backend=redis_url)
     
     class ContextTask(celery.Task):
         def __call__(self, *args, **kwargs):
