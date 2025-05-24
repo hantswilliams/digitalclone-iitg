@@ -4,7 +4,7 @@ View routes for the application
 import os
 import datetime
 from werkzeug.utils import secure_filename
-from flask import Blueprint, render_template, redirect, url_for, session, request, current_app, jsonify
+from flask import Blueprint, render_template, redirect, url_for, session, request, current_app, jsonify, send_from_directory, abort
 from flask_login import login_required, current_user
 from app.models import Project, Text, Photo, Audio, Video, PowerPoint, User, ClonedVoice
 from app.forms import TextForm, PhotoForm, AudioGenerationForm, VideoGenerationForm, ProjectForm, VoiceCloneForm
@@ -14,6 +14,18 @@ from app.errors import APIError
 from app.api.routes import api_bp
 
 views_bp = Blueprint('views', __name__)
+
+
+# Route to serve uploaded files
+@views_bp.route('/uploads/<path:filename>')
+def uploaded_file(filename):
+    """Serve uploaded files from the uploads directory"""
+    try:
+        upload_folder = current_app.config['UPLOAD_FOLDER']
+        return send_from_directory(upload_folder, filename)
+    except Exception as e:
+        current_app.logger.error(f"Error serving uploaded file {filename}: {str(e)}")
+        abort(404)
 
 
 @views_bp.route('/')
@@ -250,12 +262,16 @@ def upload_photo_to_project(project_id):
         # Create photo record
         photo = Photo(
             user_id=user_id,
-            project_id=project_id,
             photo_url=f'/uploads/photos/{new_filename}',
             photo_description=request.form.get('description', '')
         )
         
         db.session.add(photo)
+        db.session.flush()  # This assigns an ID to the photo object
+        
+        # Associate the photo with the project using the many-to-many relationship
+        project.photos.append(photo)
+        
         db.session.commit()
         
         success_flash('Photo uploaded successfully')
@@ -317,13 +333,17 @@ def create_presentation(project_id):
         # Create PowerPoint entry
         ppt = PowerPoint(
             user_id=user_id,
-            project_id=project_id,
             title=title,
             ppt_url=f"/pending/{task.id}",  # Will be updated when task completes
             status="processing"
         )
         
         db.session.add(ppt)
+        db.session.flush()  # This assigns an ID to the ppt object
+        
+        # Associate the presentation with the project using the many-to-many relationship
+        project.powerpoints.append(ppt)
+        
         db.session.commit()
         
         success_flash('Presentation creation started. You will be notified when it completes.')
@@ -391,18 +411,6 @@ def text_detail(text_id):
     audios = Audio.query.filter_by(text_id=text_id).all()
     
     return render_template('text_detail.html', text=text, audios=audios)
-
-
-@views_bp.route('/texts/<int:text_id>')
-@login_required
-def view_text(text_id):
-    """View text details"""
-    user_id = session['user'].get('sub')
-    
-    # Check if text exists and belongs to current user
-    text = Text.query.filter_by(id=text_id, user_id=user_id).first_or_404()
-    
-    return render_template('text_details.html', text=text)
 
 
 @views_bp.route('/texts/<int:text_id>/generate-audio')
