@@ -72,13 +72,7 @@ docker-compose -f docker-compose.dev.yml up -d celery_worker
 echo "Checking for required Python packages..."
 pip3 install -r requirements.txt
 
-# Apply any database migrations
-echo "Applying database migrations..."
-if ! flask db upgrade; then
-  echo "Warning: Database migration failed. This might be expected if you're starting with a fresh database."
-  echo "Attempting to create database tables directly..."
-  python3 -c "from app import create_app; from app.extensions import db; app = create_app('development'); app.app_context().push(); db.create_all()"
-fi
+# Database tables will be created automatically when the Flask app starts
 
 # Run the Flask application
 echo "Starting Flask application in development mode..."

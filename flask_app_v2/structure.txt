@@ -34,7 +34,7 @@ flask_app_v2/
 │       ├── __init__.py
 │       ├── helpers.py
 │       └── logger.py                # Centralized logging
-├── migrations/                      # Database migrations
+├── logs/                           # Application logs
 ├── tests/                           # Unit and integration tests
 │   ├── __init__.py
 │   ├── conftest.py                  # Test fixtures  

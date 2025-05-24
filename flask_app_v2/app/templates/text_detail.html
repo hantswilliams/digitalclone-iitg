@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Text Details - Digital Clone IITG{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-4">
+        <div>
+            <h1 class="text-3xl font-bold">Text Details</h1>
+            <p class="text-gray-600">Created {{ text.created_at.strftime('%B %d, %Y') }}</p>
+        </div>
+        <div class="flex space-x-2">
+            <a href="{{ url_for('views.texts') }}" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">
+                Back to Texts
+            </a>
+            <a href="{{ url_for('views.text_generate_audio', text_id=text.id) }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                Generate Audio
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <h2 class="text-xl font-semibold mb-4">Text Content</h2>
+        <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <p class="whitespace-pre-line">{{ text.text_content }}</p>
+        </div>
+    </div>
+
+    <div class="mb-6">
+        <div class="border-b border-gray-200 mb-4">
+            <h2 class="text-xl font-semibold py-2">Associated Audio Files</h2>
+        </div>
+
+        {% if audios %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% for audio in audios %}
+            <div class="bg-white shadow rounded-lg p-4">
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <h3 class="font-semibold">Voice: {{ audio.voice }}</h3>
+                        <p class="text-gray-500 text-sm">Created {{ audio.created_at.strftime('%B %d, %Y') }}</p>
+                    </div>
+                    <a href="{{ url_for('views.generate_video', audio_id=audio.id) }}" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm">
+                        Create Video
+                    </a>
+                </div>
+                
+                <div class="my-3">
+                    <audio controls class="w-full">
+                        <source src="{{ audio.audio_url }}" type="audio/mpeg">
+                        Your browser does not support the audio element.
+                    </audio>
+                </div>
+                
+                <div class="text-sm text-gray-600 mt-2">
+                    <p>Audio text: {{ audio.audio_text }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="bg-gray-50 rounded-lg p-6 text-center">
+            <p class="text-gray-600">No audio files have been generated from this text yet.</p>
+            <a href="{{ url_for('views.text_generate_audio', text_id=text.id) }}" class="inline-block mt-3 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                Generate Audio Now
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="mb-6">
+        <div class="border-b border-gray-200 mb-4">
+            <h2 class="text-xl font-semibold py-2">Projects Using This Text</h2>
+        </div>
+
+        {% if text.projects %}
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {% for project in text.projects %}
+            <div class="bg-white shadow rounded-lg p-4">
+                <h3 class="font-semibold mb-2">{{ project.name }}</h3>
+                <p class="text-gray-600 text-sm mb-3 line-clamp-2">{{ project.description or 'No description' }}</p>
+                <a href="{{ url_for('views.project_details', project_id=project.id) }}" class="text-blue-500 hover:text-blue-700">View Project</a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="bg-gray-50 rounded-lg p-6 text-center">
+            <p class="text-gray-600">This text is not associated with any projects yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Any additional JavaScript can go here
+</script>
+{% endblock %}

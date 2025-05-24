@@ -48,7 +48,7 @@ class BaseConfig:
 class DevelopmentConfig(BaseConfig):
     """Development configuration"""
     DEBUG = True
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///dev.db')
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5433/digitalclone')
 
 
 class TestingConfig(BaseConfig):

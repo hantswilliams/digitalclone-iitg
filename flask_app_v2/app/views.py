@@ -4,10 +4,10 @@ View routes for the application
 import os
 import datetime
 from werkzeug.utils import secure_filename
-from flask import Blueprint, render_template, redirect, url_for, session, request, current_app
+from flask import Blueprint, render_template, redirect, url_for, session, request, current_app, jsonify
 from flask_login import login_required, current_user
-from app.models import Project, Text, Photo, Audio, Video, PowerPoint, User
-from app.forms import TextForm, PhotoForm, AudioGenerationForm, VideoGenerationForm, ProjectForm
+from app.models import Project, Text, Photo, Audio, Video, PowerPoint, User, ClonedVoice
+from app.forms import TextForm, PhotoForm, AudioGenerationForm, VideoGenerationForm, ProjectForm, VoiceCloneForm
 from app.extensions import db
 from app.utils.flash import flash, error_flash, success_flash
 from app.errors import APIError
@@ -448,7 +448,7 @@ def audio_generation(text_id):
             error_flash(f'Error starting audio generation: {str(e)}')
     
     return render_template(
-        'audio_generation.html',
+        'audio/generate.html',
         form=form,
         text=text
     )
@@ -569,12 +569,24 @@ def generate_audio(text_id):
         try:
             # Start async task for audio generation
             from app.tasks.audio_tasks import generate_audio_task
-            task = generate_audio_task.delay(
-                form.text_id.data,
-                form.voice.data,
-                form.provider.data or 'playht',
-                user_id
-            )
+            if form.voice_type.data == 'cloned':
+                # Use cloned voice
+                task = generate_audio_task.delay(
+                    form.text_id.data,
+                    form.voice.data,
+                    form.provider.data,
+                    user_id,
+                    use_cloned_voice=True
+                )
+            else:
+                # Use default voice
+                task = generate_audio_task.delay(
+                    form.text_id.data,
+                    form.voice.data,
+                    form.provider.data,
+                    user_id,
+                    use_cloned_voice=False
+                )
             
             flash('Audio generation started. You will be notified when it completes.', 'success')
             return redirect(url_for('views.task_status', task_id=task.id, return_to=request.referrer))
@@ -592,7 +604,7 @@ def generate_audio(text_id):
     ]
     
     return render_template(
-        'audio_generation.html',
+        'audio/generate.html',
         form=form,
         text=text,
         voices=voices
@@ -663,3 +675,93 @@ def task_status(task_id):
         task_id=task_id,
         return_to=return_to
     )
+
+
+@views_bp.route('/voices')
+@login_required
+def voice_list():
+    """List user's cloned voices"""
+    user_id = session['user'].get('sub')
+    
+    # Get user's cloned voices from database
+    voices = ClonedVoice.query.filter_by(user_id=user_id).order_by(ClonedVoice.created_at.desc()).all()
+    
+    return render_template('voices/index.html', voices=voices)
+
+
+@views_bp.route('/voices/create', methods=['GET', 'POST'])
+@login_required
+def create_voice():
+    """Create a new cloned voice"""
+    user_id = session['user'].get('sub')
+    form = VoiceCloneForm()
+    
+    if form.validate_on_submit():
+        try:
+            # Create temp directory for audio files if it doesn't exist
+            voice_samples_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'voice_samples', user_id)
+            os.makedirs(voice_samples_dir, exist_ok=True)
+            
+            # Save uploaded audio files
+            audio_files = []
+            for audio_file in form.audio_files.data:
+                if audio_file:
+                    filename = secure_filename(audio_file.filename)
+                    filepath = os.path.join(voice_samples_dir, filename)
+                    audio_file.save(filepath)
+                    audio_files.append(filepath)
+            
+            if not audio_files:
+                flash('No audio files were uploaded', 'error')
+                return render_template('voices/create.html', form=form)
+            
+            # Start async task for voice cloning
+            from app.tasks.voice_tasks import clone_voice_task
+            task = clone_voice_task.delay(
+                audio_files,
+                form.voice_name.data,
+                form.voice_type.data,
+                form.provider.data,
+                user_id
+            )
+            
+            flash('Voice cloning started. You will be notified when it completes.', 'success')
+            return redirect(url_for('views.task_status', task_id=task.id, return_to=url_for('views.voice_list')))
+            
+        except Exception as e:
+            current_app.logger.error(f"Error in create_voice: {str(e)}")
+            flash('An error occurred while creating the voice clone', 'error')
+    
+    return render_template('voices/create.html', form=form)
+
+
+@views_bp.route('/voices/<int:voice_id>/delete', methods=['POST'])
+@login_required
+def delete_voice(voice_id):
+    """Delete a cloned voice"""
+    user_id = session['user'].get('sub')
+    
+    # Get voice and verify ownership
+    voice = ClonedVoice.query.filter_by(id=voice_id, user_id=user_id).first_or_404()
+    
+    try:
+        db.session.delete(voice)
+        db.session.commit()
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        current_app.logger.error(f"Error deleting voice {voice_id}: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@views_bp.route('/voices/<int:voice_id>/use')
+@login_required
+def use_voice(voice_id):
+    """Use a cloned voice for text-to-speech"""
+    user_id = session['user'].get('sub')
+    
+    # Get voice and verify ownership
+    voice = ClonedVoice.query.filter_by(id=voice_id, user_id=user_id).first_or_404()
+    
+    # Redirect to text list with voice preselected
+    return redirect(url_for('views.text_list', voice_id=voice_id))

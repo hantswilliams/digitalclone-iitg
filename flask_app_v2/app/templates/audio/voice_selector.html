@@ -1,0 +1,116 @@
+{# Voice selection partial template #}
+<div class="space-y-6">
+    <!-- Voice Type Selection -->
+    <div>
+        <label for="voice_type" class="block text-sm font-medium text-gray-700">
+            Voice Type
+        </label>
+        {{ form.voice_type(class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500") }}
+        {% if form.voice_type.errors %}
+        <div class="mt-1 text-sm text-red-600">
+            {{ form.voice_type.errors[0] }}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Voice Selection -->
+    <div id="voiceSelectionContainer">
+        <label for="voice" class="block text-sm font-medium text-gray-700">
+            Select Voice
+        </label>
+        <div class="mt-1 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {% if default_voices %}
+            <div class="default-voices {% if form.voice_type.data == 'cloned' %}hidden{% endif %}">
+                {% for voice_id, voice_name in default_voices %}
+                <div class="relative flex items-center space-x-3 rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-gray-400">
+                    <div class="flex-1 min-w-0">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="voice" value="{{ voice_id }}" class="hidden" 
+                                   {% if form.voice.data == voice_id %}checked{% endif %}>
+                            <span class="focus:outline-none">
+                                <p class="text-sm font-medium text-gray-900">{{ voice_name }}</p>
+                                <p class="truncate text-sm text-gray-500">Default Voice</p>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if cloned_voices %}
+            <div class="cloned-voices {% if form.voice_type.data != 'cloned' %}hidden{% endif %}">
+                {% for voice in cloned_voices %}
+                <div class="relative flex items-center space-x-3 rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-gray-400">
+                    <div class="flex-1 min-w-0">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="voice" value="{{ voice.id }}" class="hidden"
+                                   {% if form.voice.data == voice.id|string %}checked{% endif %}>
+                            <span class="focus:outline-none">
+                                <p class="text-sm font-medium text-gray-900">{{ voice.voice_name }}</p>
+                                <p class="truncate text-sm text-gray-500">{{ voice.voice_type|title }}</p>
+                            </span>
+                        </label>
+                    </div>
+                    {% if voice.sample_url %}
+                    <div class="flex-shrink-0">
+                        <audio controls class="h-8 w-32">
+                            <source src="{{ voice.sample_url }}" type="audio/mpeg">
+                        </audio>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% if form.voice.errors %}
+        <div class="mt-1 text-sm text-red-600">
+            {{ form.voice.errors[0] }}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Provider Selection -->
+    <div>
+        <label for="provider" class="block text-sm font-medium text-gray-700">
+            Service Provider
+        </label>
+        {{ form.provider(class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500") }}
+        {% if form.provider.errors %}
+        <div class="mt-1 text-sm text-red-600">
+            {{ form.provider.errors[0] }}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.getElementById('voice_type').addEventListener('change', function(e) {
+    const defaultVoices = document.querySelector('.default-voices');
+    const clonedVoices = document.querySelector('.cloned-voices');
+    
+    if (e.target.value === 'cloned') {
+        defaultVoices.classList.add('hidden');
+        clonedVoices.classList.remove('hidden');
+    } else {
+        defaultVoices.classList.remove('hidden');
+        clonedVoices.classList.add('hidden');
+    }
+});
+
+// Select first voice option by default
+window.addEventListener('load', function() {
+    const voiceType = document.getElementById('voice_type').value;
+    const voiceContainer = voiceType === 'cloned' ? 
+        document.querySelector('.cloned-voices') : 
+        document.querySelector('.default-voices');
+    
+    if (voiceContainer) {
+        const firstVoice = voiceContainer.querySelector('input[type="radio"]');
+        if (firstVoice) {
+            firstVoice.checked = true;
+        }
+    }
+});
+</script>

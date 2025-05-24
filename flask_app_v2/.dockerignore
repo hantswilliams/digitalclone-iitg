@@ -55,7 +55,13 @@ tests/
 .pytest_cache/
 .coverage
 htmlcov/
-migrations/versions/
+# Development files
+__pycache__/
+*.pyc
+.env*
+.vscode/
+.DS_Store
+*.log
 
 # Local configuration
 .env

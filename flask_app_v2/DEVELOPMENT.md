@@ -42,7 +42,7 @@ This guide explains how to run the Flask application in development mode without
    This script will:
    - Start PostgreSQL and Redis in Docker containers
    - Start the Celery worker in a Docker container
-   - Run database migrations if needed
+   - Database tables are created automatically on app startup
    - Start the Flask application locally (outside Docker)
 
 3. **Access the application**

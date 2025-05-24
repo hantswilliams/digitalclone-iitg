@@ -3,13 +3,11 @@ flask_app_v2 - A modular Flask application for Digital Clone project
 Using the "LEGO Approach" for swappable components
 """
 from flask import Flask
-from flask_migrate import Migrate, upgrade
 from flask_login import LoginManager
 from app.extensions import db, celery, oauth
 from app.config import config_by_name
 import logging
 import os
-import datetime
 import datetime
 
 
@@ -105,16 +103,17 @@ def init_oauth(app):
 
 
 def init_db(app):
-    """Initialize database and migrations"""
-    from flask_migrate import Migrate, upgrade
+    """Initialize database with automatic table creation and schema updates"""
     from app.models.models import User
-
-    migrate = Migrate(app, db)
     
     with app.app_context():
         try:
-            # Try to upgrade the database
-            upgrade()
+            # First, try to create all tables (for new installations)
+            db.create_all()
+            app.logger.info("Database tables created/verified successfully")
+            
+            # Check and add missing columns to existing tables
+            _add_missing_columns(app)
             
             # Check if we need to seed initial data
             if not User.query.first():
@@ -135,6 +134,62 @@ def init_db(app):
                 app.logger.info("Initial admin user created successfully")
         except Exception as e:
             app.logger.error(f"Database initialization error: {str(e)}")
-            # If upgrade fails (no migrations yet), create all tables
+            raise e
+
+
+def _add_missing_columns(app):
+    """Add missing columns to existing tables"""
+    from sqlalchemy import text
+    
+    try:
+        # Check if cloned_voice_id column exists in audio table
+        result = db.session.execute(text("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name='audio' AND column_name='cloned_voice_id'
+        """))
+        
+        if not result.fetchone():
+            app.logger.info("Adding missing cloned_voice_id column to audio table...")
+            db.session.execute(text("""
+                ALTER TABLE audio 
+                ADD COLUMN cloned_voice_id INTEGER REFERENCES cloned_voice(id)
+            """))
+            db.session.commit()
+            app.logger.info("Successfully added cloned_voice_id column")
+            
+        # Check if cloned_voice table exists, if not create it
+        result = db.session.execute(text("""
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_name='cloned_voice'
+        """))
+        
+        if not result.fetchone():
+            app.logger.info("Creating cloned_voice table...")
+            db.session.execute(text("""
+                CREATE TABLE cloned_voice (
+                    id SERIAL PRIMARY KEY,
+                    voice_name VARCHAR(255) NOT NULL,
+                    voice_id VARCHAR(255) NOT NULL,
+                    provider VARCHAR(50) NOT NULL,
+                    voice_type VARCHAR(50) DEFAULT 'cloned',
+                    status VARCHAR(50) DEFAULT 'processing',
+                    sample_url VARCHAR(500),
+                    user_id VARCHAR(255) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(user_id)
+                )
+            """))
+            db.session.commit()
+            app.logger.info("Successfully created cloned_voice table")
+            
+    except Exception as e:
+        app.logger.warning(f"Could not check/add missing columns (probably SQLite): {str(e)}")
+        # If we're using SQLite, just recreate all tables
+        if 'sqlite' in str(db.engine.url):
+            app.logger.info("Using SQLite - recreating tables to ensure schema is up to date")
+            db.drop_all()
             db.create_all()
-            app.logger.info("Created database tables directly as no migrations exist yet")
+            app.logger.info("SQLite tables recreated successfully")

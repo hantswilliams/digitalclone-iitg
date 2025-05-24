@@ -2,7 +2,7 @@
 Form classes for the application
 """
 from flask_wtf import FlaskForm
-from flask_wtf.file import FileField, FileRequired, FileAllowed
+from flask_wtf.file import FileField, FileRequired, FileAllowed, MultipleFileField
 from wtforms import StringField, TextAreaField, PasswordField, BooleanField, SelectField, IntegerField
 from wtforms.validators import DataRequired, Email, Length, EqualTo, Optional, NumberRange, URL
 from app.utils.forms import validate_password_strength, validate_username, validate_file_size
@@ -46,19 +46,28 @@ class AudioGenerationForm(FlaskForm):
             DataRequired(message="Text ID is required")
         ]
     )
-    voice = StringField(
+    voice_type = SelectField(
+        'Voice Type',
+        choices=[
+            ('default', 'Default Voices'),
+            ('cloned', 'My Cloned Voices')
+        ],
+        validators=[DataRequired(message="Voice type is required")]
+    )
+    voice = SelectField(
         'Voice',
         validators=[
-            DataRequired(message="Voice selection is required"),
-            Length(max=50, message="Voice name cannot exceed 50 characters")
+            DataRequired(message="Voice selection is required")
         ]
     )
-    provider = StringField(
+    provider = SelectField(
         'Provider',
-        validators=[
-            Optional(),
-            Length(max=50, message="Provider name cannot exceed 50 characters")
-        ]
+        choices=[
+            ('playht', 'PlayHT (Recommended)'),
+            ('elevenlabs', 'ElevenLabs'),
+            ('internal', 'Internal Service')
+        ],
+        validators=[DataRequired(message="Provider is required")]
     )
 
 
@@ -199,5 +208,48 @@ class ProjectMediaForm(FlaskForm):
         'Media ID',
         validators=[
             DataRequired(message="Media ID is required")
+        ]
+    )
+
+
+class VoiceCloneForm(FlaskForm):
+    """Form for creating cloned voices"""
+    voice_name = StringField(
+        'Voice Name',
+        validators=[
+            DataRequired(message="Voice name is required"),
+            Length(min=3, max=50, message="Voice name must be between 3 and 50 characters")
+        ]
+    )
+    voice_type = SelectField(
+        'Voice Type',
+        choices=[
+            ('natural', 'Natural (General Purpose)'),
+            ('expressive', 'Expressive (With Emotions)'),
+            ('narrator', 'Narrator (Audiobooks)')
+        ],
+        validators=[DataRequired(message="Voice type is required")]
+    )
+    provider = SelectField(
+        'Provider',
+        choices=[
+            ('playht', 'PlayHT (Recommended)'),
+            ('elevenlabs', 'ElevenLabs'),
+            ('internal', 'Internal Service')
+        ],
+        validators=[DataRequired(message="Provider is required")]
+    )
+    audio_files = MultipleFileField(
+        'Voice Sample Files',
+        validators=[
+            DataRequired(message="At least one audio file is required"),
+            FileAllowed(['wav', 'mp3'], message="Only WAV and MP3 files are allowed")
+        ]
+    )
+    description = TextAreaField(
+        'Description',
+        validators=[
+            Optional(),
+            Length(max=200, message="Description cannot exceed 200 characters")
         ]
     )

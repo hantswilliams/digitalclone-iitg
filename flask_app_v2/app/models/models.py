@@ -76,11 +76,15 @@ class Audio(db.Model):
     audio_url = Column(String)
     audio_text = Column(String)
     voice = Column(String)
+    cloned_voice_id = Column(Integer, ForeignKey('cloned_voice.id'), nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.now)
     updated_at = Column(DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now)
     
     # Relationship to Text
     text = relationship('Text', backref=backref('audios', lazy=True))
+    
+    # Relationship to ClonedVoice (optional)
+    cloned_voice = relationship('ClonedVoice', backref=backref('audios', lazy=True))
     
     # Many-to-many relationship with Project
     projects = relationship('Project', secondary='project_audio_association', back_populates='audios')
@@ -139,6 +143,25 @@ class Project(db.Model):
     audios = relationship('Audio', secondary='project_audio_association', back_populates='projects')
     videos = relationship('Video', secondary='project_video_association', back_populates='projects')
     powerpoints = relationship('PowerPoint', secondary='project_powerpoint_association', back_populates='projects')
+
+
+class ClonedVoice(db.Model):
+    """User's cloned voice profile for personalized TTS"""
+    __tablename__ = 'cloned_voice'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String, ForeignKey('users.user_id'))
+    voice_name = Column(String)
+    voice_id = Column(String, unique=True)  # Provider's voice ID
+    provider = Column(String)  # 'playht', 'elevenlabs', 'internal'
+    voice_type = Column(String)  # 'natural', 'expressive', 'narrator', etc.
+    status = Column(String)  # 'processing', 'ready', 'failed'
+    sample_url = Column(String, nullable=True)  # URL to a sample of the voice
+    created_at = Column(DateTime, default=datetime.datetime.now)
+    updated_at = Column(DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now)
+    
+    # Relationship to User
+    user = relationship('User', backref=backref('cloned_voices', lazy=True))
 
 
 # Association tables for many-to-many relationships

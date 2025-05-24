@@ -8,15 +8,16 @@ from flask import current_app
 
 
 @celery.task(bind=True)
-def generate_audio_task(self, text_id, voice, provider='playht', user_id=None):
+def generate_audio_task(self, text_id, voice, provider='playht', user_id=None, use_cloned_voice=False):
     """
     Celery task to generate audio from text
     
     Args:
         text_id (int): ID of the text to convert
-        voice (str): Voice identifier to use
+        voice (str): Voice identifier or cloned voice ID to use
         provider (str): TTS provider to use
         user_id (str, optional): User ID for tracking
+        use_cloned_voice (bool): Whether to use a cloned voice
         
     Returns:
         dict: Result of audio generation
@@ -42,7 +43,11 @@ def generate_audio_task(self, text_id, voice, provider='playht', user_id=None):
             
             # Initialize service and generate audio
             audio_service = AudioService()
-            result = audio_service.generate_audio(text_content, voice, provider)
+            
+            if use_cloned_voice:
+                result = audio_service.generate_audio_with_cloned_voice(text_content, int(voice))
+            else:
+                result = audio_service.generate_audio(text_content, voice, provider)
             
             if not result['success']:
                 return result
@@ -53,7 +58,8 @@ def generate_audio_task(self, text_id, voice, provider='playht', user_id=None):
                 text_id=text_id,
                 audio_url=result['url'],
                 audio_text=text_content,
-                voice=voice
+                voice=result['voice'],
+                cloned_voice_id=int(voice) if use_cloned_voice else None
             )
             
             db.session.add(audio)

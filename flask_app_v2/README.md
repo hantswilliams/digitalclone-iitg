@@ -32,7 +32,7 @@ flask_app_v2/
 │   ├── templates/                  # Jinja templates
 │   ├── static/                     # Static assets
 │   └── utils/                      # Utility functions
-├── migrations/                     # Database migrations
+├── logs/                          # Application logs
 ├── tests/                          # Unit and integration tests
 ├── .env.example                    # Example environment variables
 ├── celery_worker.py                # Celery worker entry point
