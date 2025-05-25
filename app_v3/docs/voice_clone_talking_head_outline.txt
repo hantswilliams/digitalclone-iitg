@@ -1,0 +1,105 @@
+Voice-Cloned Talking-Head Lecturer — Proof-of-Concept Outline
+
+1 · Objective
+Build an on-prem pipeline that lets medical faculty upload one portrait plus a short voice sample and instantly generate lecture videos in which their digital avatar speaks any supplied script.
+
+---
+
+2 · High-level Architecture
+
+(front-end, back-end, and model services diagram described in original markdown; mermaid not included in plain text)
+
+---
+
+3 · Core Components
+Layer | Technology | Purpose
+UI | React + Tailwind · HTMX | Upload assets, prompt script, preview video
+API | Flask (blueprints) | Auth, job submission, signed-URL delivery
+Async | Celery + Redis | GPU job queue, retries, monitoring
+Storage | PostgreSQL · MinIO | Metadata, user assets, generated media
+Voice | Zyphra TTS (Apache-2.0) | Speaker cloning & speech synthesis
+Avatar | KDTalker (CC BY-NC 4.0) | Portrait-to-talking-head video
+Text | Llama-3-8B via Ollama | Prompt-to-lecture draft generation
+
+---
+
+4 · Key API Calls
+
+4.1 KDTalker (Gradio Client, Python)
+from gradio_client import Client, handle_file
+client = Client("fffiloni/KDTalker")
+result = client.predict(
+    source_image=handle_file("avatar.png"),   # portrait
+    driven_audio=handle_file("speech.wav"),   # TTS output
+    api_name="/gradio_infer"
+)
+print(result)  # returns URL or path to MP4
+
+4.2 Zyphra TTS (curl, Bash)
+# encode reference voice to base64
+BASE64_AUDIO=$(base64 -i reference_voice.wav)
+
+# request speech
+curl -X POST "http://api.zyphra.com/v1/audio/text-to-speech"   -H "X-API-Key: $ZYPHRA_API_KEY"   -H "Content-Type: application/json"   -d '{
+    "text": "This will use the cloned voice",
+    "speaking_rate": 15,
+    "speaker_audio": "'"$BASE64_AUDIO"'"
+  }'   --output speech.webm
+
+Convert the WebM to WAV for KDTalker: ffmpeg -i speech.webm speech.wav
+
+---
+
+5 · End-to-End Job Flow
+1. Upload assets → POST /assets
+2. Submit job → POST /generate with {script_id, image_id, voice_id}
+3. Celery task:
+   a. Call Zyphra → speech.webm
+   b. Transcode to speech.wav
+   c. Call KDTalker → video.mp4
+   d. Store artefacts in MinIO; persist metadata in PostgreSQL
+4. API returns signed S3 URL + caption file
+5. User previews, downloads, or exports SCORM package
+
+---
+
+6 · Environment Variables
+FLASK_ENV=development
+SECRET_KEY=change-me
+DATABASE_URL=postgresql://clone_user:***@db/cloneapp
+MINIO_ENDPOINT=http://minio:9000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin
+HF_API_TOKEN=hf_****************************
+ZYPHRA_API_KEY=*****************************
+GPU_WORKERS=1
+
+---
+
+7 · MVP Task List
+- Docker-Compose stack with NVIDIA runtime
+- Flask blueprints: auth, asset upload, job submission
+- Celery worker image with FFmpeg, gradio_client, requests
+- S3 bucket policy & presigned-URL helper
+- Ollama sidecar container (LLM)
+- React wizard UI (upload → prompt → preview)
+- Unit tests (pytest) & GitHub Actions CI
+- Draft README & LICENSE (respect CC BY-NC for KDTalker)
+
+---
+
+8 · Milestones
+Sprint | Deliverable | Acceptance Criteria
+S1 | Infrastructure scaffolding | docker-compose up launches API, PG, MinIO
+S2 | Asset upload & storage | Portrait + WAV reachable in MinIO
+S3 | Voice cloning service | /voice/clone returns ≤ 20 s audio
+S4 | Talking-head generation | /video/generate returns MP4, lip-sync score > 0.9
+S5 | Front-end integration | End-to-end demo from browser
+S6 | SCORM export & LMS test | Brightspace import plays without errors
+
+---
+
+9 · Licensing & Compliance Notes
+- KDTalker → CC BY-NC 4.0 (non-commercial). Suitable for university teaching; commercial reuse requires permission.
+- Zyphra TTS → Apache-2.0 (permissive).
+- Encrypt reference voices at rest; provide opt-out and auto-delete options to protect faculty privacy.
