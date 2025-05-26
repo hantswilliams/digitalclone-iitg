@@ -33,6 +33,9 @@ def make_celery(app):
         enable_utc=app.config.get('enable_utc', True),
     )
     
+    # Store the Flask app instance
+    celery.flask_app = app
+    
     class ContextTask(celery.Task):
         """Make celery tasks work with Flask app context"""
         def __call__(self, *args, **kwargs):

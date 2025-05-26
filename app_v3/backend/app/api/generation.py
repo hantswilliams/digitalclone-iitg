@@ -3,7 +3,7 @@ Video generation API endpoints
 """
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from marshmallow import Schema, fields, ValidationError
+from marshmallow import Schema, fields, ValidationError, validate
 
 from ..extensions import db
 from ..models import Job, Asset, User
@@ -59,7 +59,7 @@ class ScriptRequestSchema(Schema):
     duration_minutes = fields.Int(load_default=5, validate=lambda x: 1 <= x <= 60,
                                  error_messages={'invalid': 'Duration must be between 1 and 60 minutes'})
     style = fields.Str(load_default='conversational', 
-                      validate=lambda x: x in ['conversational', 'formal', 'educational', 'storytelling', 'persuasive'],
+                      validate=validate.OneOf(['conversational', 'formal', 'educational', 'storytelling', 'persuasive']),
                       error_messages={'invalid': 'Style must be one of: conversational, formal, educational, storytelling, persuasive'})
     additional_context = fields.Str(load_default='', validate=lambda x: len(x) <= 1000,
                                    error_messages={'invalid': 'Additional context must be 1000 characters or less'})
@@ -108,8 +108,8 @@ def generate_script_endpoint():
         
         # Trigger script generation task
         task_result = generate_script.delay(
-            job_id=job.id,
-            prompt=data['prompt'],
+            job.id,  # job_id as positional argument
+            data['prompt'],  # prompt as positional argument
             topic=data.get('topic', ''),
             target_audience=data.get('target_audience', 'general'),
             duration_minutes=data.get('duration_minutes', 5),
@@ -118,7 +118,7 @@ def generate_script_endpoint():
         )
         
         # Update job with task ID
-        job.task_id = task_result.id
+        job.celery_task_id = task_result.id
         db.session.commit()
         
         return jsonify({

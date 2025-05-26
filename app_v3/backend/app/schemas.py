@@ -212,7 +212,7 @@ class JobCreateSchema(Schema):
     title = fields.Str(required=True, validate=validate.Length(min=1, max=200))
     description = fields.Str(allow_none=True, validate=validate.Length(max=1000))
     job_type = fields.Str(required=True, validate=validate.OneOf([
-        'voice_clone', 'text_to_speech', 'video_generation', 'full_pipeline'
+        'voice_clone', 'text_to_speech', 'video_generation', 'full_pipeline', 'script_generation'
     ]))
     priority = fields.Str(load_default='normal', validate=validate.OneOf([
         'low', 'normal', 'high', 'urgent'
