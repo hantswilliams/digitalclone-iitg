@@ -9,7 +9,7 @@ from ..extensions import db
 from ..models import Job, Asset, User
 from ..models.asset import AssetType, AssetStatus
 from ..models.job import JobType, JobStatus, JobPriority
-from ..tasks import generate_speech, validate_tts_service, generate_video, validate_video_service
+from ..tasks import generate_speech, validate_tts_service, generate_video, validate_video_service, generate_script, validate_llm_service
 
 generation_bp = Blueprint('generation', __name__)
 
@@ -48,12 +48,92 @@ class ServiceStatusSchema(Schema):
     details = fields.Dict()
 
 
+class ScriptRequestSchema(Schema):
+    """Schema for script generation requests."""
+    prompt = fields.Str(required=True, validate=lambda x: len(x.strip()) > 0,
+                       error_messages={'required': 'Prompt is required for script generation'})
+    topic = fields.Str(load_default='', validate=lambda x: len(x) <= 200,
+                      error_messages={'invalid': 'Topic must be 200 characters or less'})
+    target_audience = fields.Str(load_default='general', validate=lambda x: len(x) <= 100,
+                                error_messages={'invalid': 'Target audience must be 100 characters or less'})
+    duration_minutes = fields.Int(load_default=5, validate=lambda x: 1 <= x <= 60,
+                                 error_messages={'invalid': 'Duration must be between 1 and 60 minutes'})
+    style = fields.Str(load_default='conversational', 
+                      validate=lambda x: x in ['conversational', 'formal', 'educational', 'storytelling', 'persuasive'],
+                      error_messages={'invalid': 'Style must be one of: conversational, formal, educational, storytelling, persuasive'})
+    additional_context = fields.Str(load_default='', validate=lambda x: len(x) <= 1000,
+                                   error_messages={'invalid': 'Additional context must be 1000 characters or less'})
+    priority = fields.Str(load_default='normal', validate=lambda x: x in ['low', 'normal', 'high', 'urgent'])
+    title = fields.Str(load_default='Script Generation', validate=lambda x: len(x.strip()) <= 100,
+                      error_messages={'invalid': 'Title must be 100 characters or less'})
+    description = fields.Str(load_default='', validate=lambda x: len(x) <= 500,
+                            error_messages={'invalid': 'Description must be 500 characters or less'})
+
+
 @generation_bp.route('/script', methods=['POST'])
 @jwt_required()
-def generate_script():
-    """Generate script using LLM"""
-    # TODO: Implement script generation
-    return jsonify({'message': 'Script generation endpoint - coming soon'}), 501
+def generate_script_endpoint():
+    """Generate script using LLM service"""
+    try:
+        # Validate request data
+        schema = ScriptRequestSchema()
+        data = schema.load(request.get_json() or {})
+        
+        # Get current user
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Create job for script generation
+        job = Job(
+            title=data.get('title', f"Script: {data['prompt'][:50]}..."),
+            job_type=JobType.SCRIPT_GENERATION,
+            user_id=current_user_id,
+            status=JobStatus.PENDING,
+            priority=JobPriority[data['priority'].upper()],
+            description=data.get('description', f"Generate script for: {data['prompt'][:100]}..."),
+            parameters={
+                'prompt': data['prompt'],
+                'topic': data.get('topic', ''),
+                'target_audience': data.get('target_audience', 'general'),
+                'duration_minutes': data.get('duration_minutes', 5),
+                'style': data.get('style', 'conversational'),
+                'additional_context': data.get('additional_context', '')
+            }
+        )
+        
+        db.session.add(job)
+        db.session.commit()
+        
+        # Trigger script generation task
+        task_result = generate_script.delay(
+            job_id=job.id,
+            prompt=data['prompt'],
+            topic=data.get('topic', ''),
+            target_audience=data.get('target_audience', 'general'),
+            duration_minutes=data.get('duration_minutes', 5),
+            style=data.get('style', 'conversational'),
+            additional_context=data.get('additional_context', '')
+        )
+        
+        # Update job with task ID
+        job.task_id = task_result.id
+        db.session.commit()
+        
+        return jsonify({
+            'job_id': job.id,
+            'task_id': task_result.id,
+            'status': job.status.value,
+            'message': 'Script generation started',
+            'parameters': job.parameters
+        }), 202
+        
+    except ValidationError as e:
+        return jsonify({'error': 'Validation failed', 'details': e.messages}), 400
+    except Exception as e:
+        current_app.logger.error(f"Script generation error: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 @generation_bp.route('/voice-clone', methods=['POST'])
@@ -182,6 +262,38 @@ def tts_service_status():
     except Exception as e:
         return jsonify({
             'service': 'zyphra_tts',
+            'status': 'error',
+            'details': {'error': str(e)}
+        }), 500
+
+
+@generation_bp.route('/llm/status', methods=['GET'])
+@jwt_required()
+def llm_service_status():
+    """
+    Check the status of the LLM service (Llama-4).
+    
+    Returns:
+    {
+        "service": "llama4_llm",
+        "status": "healthy|unhealthy|error",
+        "details": {...}
+    }
+    """
+    try:
+        # Queue validation task
+        task = validate_llm_service.apply_async()
+        result = task.get(timeout=60)  # Wait up to 60 seconds for LLM
+        
+        return jsonify({
+            'service': 'llama4_llm',
+            'status': result['status'],
+            'details': result
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'service': 'llama4_llm',
             'status': 'error',
             'details': {'error': str(e)}
         }), 500
