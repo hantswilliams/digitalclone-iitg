@@ -10,23 +10,33 @@ export const assetService = {
     if (filters.page) params.append('page', filters.page);
     if (filters.per_page) params.append('per_page', filters.per_page);
 
-    const response = await api.get(`/api/assets?${params.toString()}`);
-    return response.data;
+    // Ensure we use the correct endpoint with trailing slash
+    const queryString = params.toString();
+    const url = queryString ? `/api/assets/?${queryString}` : '/api/assets/';
+    
+    try {
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching assets:', error);
+      throw error;
+    }
   },
 
   // Get presigned URL for upload
-  getPresignedUrl: async (filename, fileType, assetType) => {
-    const response = await api.post('/api/assets/presigned-url', {
+  getPresignedUrl: async (filename, fileType, assetType, fileSize) => {
+    const response = await api.post('/api/assets/presigned-upload', {
       filename,
       content_type: fileType,
       asset_type: assetType,
+      file_size: fileSize,
     });
     return response.data;
   },
 
-  // Register uploaded asset
-  registerAsset: async (assetData) => {
-    const response = await api.post('/api/assets', assetData);
+  // Confirm uploaded asset
+  confirmUpload: async (assetId) => {
+    const response = await api.post(`/api/assets/${assetId}/confirm-upload`);
     return response.data;
   },
 

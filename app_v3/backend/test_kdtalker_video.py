@@ -316,17 +316,17 @@ def test_video_generation_api(token, portrait_asset_id, audio_asset_id):
             # Monitor job progress
             if job_id:
                 print_info("Monitoring job progress...")
-                for i in range(10):  # Check progress for up to 10 iterations
+                for i in range(30):  # Check progress for up to 30 iterations (1 minute)
                     time.sleep(2)
                     
-                    job_response = requests.get(f"{API_BASE_URL}/jobs/{job_id}", headers=headers)
+                    # Use the new status endpoint for real-time monitoring
+                    job_response = requests.get(f"{API_BASE_URL}/jobs/{job_id}/status", headers=headers)
                     if job_response.status_code == 200:
                         job_data = job_response.json()
                         status = job_data.get('status')
-                        progress = job_data.get('progress', 0)
-                        status_message = job_data.get('status_message', '')
+                        progress = job_data.get('progress_percentage', 0)
                         
-                        print_info(f"Progress: {progress}% - {status} - {status_message}")
+                        print_info(f"Progress: {progress}% - {status}")
                         
                         if status in ['completed', 'failed']:
                             break
@@ -334,23 +334,24 @@ def test_video_generation_api(token, portrait_asset_id, audio_asset_id):
                         print_warning(f"Failed to get job status: {job_response.status_code}")
                         break
                 
-                # Final job status
+                # Final job status - get full details
                 job_response = requests.get(f"{API_BASE_URL}/jobs/{job_id}", headers=headers)
                 if job_response.status_code == 200:
                     final_job_data = job_response.json()
-                    final_status = final_job_data.get('status')
+                    job_info = final_job_data.get('job', final_job_data)  # Handle wrapped response
+                    final_status = job_info.get('status')
                     
                     if final_status == 'completed':
                         print_success("Video generation completed successfully!")
-                        result_data = final_job_data.get('result_data', {})
+                        result_data = job_info.get('result_data', {})
                         if result_data:
                             print_info(f"Video storage path: {result_data.get('video_storage_path')}")
                             print_info(f"File size: {result_data.get('file_size')} bytes")
                             print_info(f"Generation time: {result_data.get('generation_time', 0):.2f} seconds")
                     else:
                         print_warning(f"Video generation ended with status: {final_status}")
-                        if final_job_data.get('status_message'):
-                            print_info(f"Message: {final_job_data['status_message']}")
+                        if job_info.get('status_message'):
+                            print_info(f"Message: {job_info['status_message']}")
             
             return True
         else:

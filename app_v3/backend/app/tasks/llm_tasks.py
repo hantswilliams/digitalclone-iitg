@@ -50,6 +50,7 @@ def generate_script(self, job_id: int, prompt: str, **kwargs):
             # Update job status
             job.status = JobStatus.PROCESSING
             job.started_at = db.func.now()
+            job.update_progress(10, "Initializing script generation")
             db.session.commit()
         
             self.update_state(
@@ -60,6 +61,10 @@ def generate_script(self, job_id: int, prompt: str, **kwargs):
             # Initialize Llama client
             llama_config = LlamaConfig()
             llama_client = create_llama_client(llama_config)
+            
+            # Update progress
+            job.update_progress(20, "Connecting to Llama service")
+            db.session.commit()
             
             self.update_state(
                 state='PROGRESS',
@@ -78,6 +83,10 @@ def generate_script(self, job_id: int, prompt: str, **kwargs):
             
             if not generation_result.get('success'):
                 raise RuntimeError(f"Script generation failed: {generation_result.get('error')}")
+            
+            # Update progress
+            job.update_progress(70, "Saving generated script")
+            db.session.commit()
             
             self.update_state(
                 state='PROGRESS',
@@ -140,6 +149,10 @@ def generate_script(self, job_id: int, prompt: str, **kwargs):
             except Exception as e:
                 logger.error(f"Failed to save script to storage: {e}")
                 script_asset.status = AssetStatus.ERROR
+            
+            # Update progress
+            job.update_progress(90, "Finalizing script generation")
+            db.session.commit()
             
             self.update_state(
                 state='PROGRESS',

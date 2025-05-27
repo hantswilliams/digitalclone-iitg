@@ -6,8 +6,12 @@ import AppLayout from './components/layout/AppLayout';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
+import AssetsPage from './pages/AssetsPage';
+import JobsPage from './pages/JobsPage';
+import CreateVideoPage from './pages/CreateVideoPage';
 
 function App() {
+
   return (
     <AuthProvider>
       <Router>
@@ -26,14 +30,10 @@ function App() {
               </ProtectedRoute>
             } />
             
-            {/* Placeholder routes */}
             <Route path="/jobs" element={
               <ProtectedRoute>
                 <AppLayout>
-                  <div className="p-6">
-                    <h1 className="text-2xl font-bold text-gray-900">Jobs</h1>
-                    <p className="text-gray-600 mt-2">Jobs page coming soon...</p>
-                  </div>
+                  <JobsPage />
                 </AppLayout>
               </ProtectedRoute>
             } />
@@ -41,10 +41,16 @@ function App() {
             <Route path="/assets" element={
               <ProtectedRoute>
                 <AppLayout>
-                  <div className="p-6">
-                    <h1 className="text-2xl font-bold text-gray-900">Assets</h1>
-                    <p className="text-gray-600 mt-2">Assets page coming soon...</p>
-                  </div>
+                  <AssetsPage />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            
+            {/* Assets upload route - opens upload modal */}
+            <Route path="/assets/upload" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <AssetsPage openUploadModal={true} />
                 </AppLayout>
               </ProtectedRoute>
             } />
@@ -52,13 +58,13 @@ function App() {
             <Route path="/create-video" element={
               <ProtectedRoute>
                 <AppLayout>
-                  <div className="p-6">
-                    <h1 className="text-2xl font-bold text-gray-900">Create Video</h1>
-                    <p className="text-gray-600 mt-2">Video creation wizard coming soon...</p>
-                  </div>
+                  <CreateVideoPage />
                 </AppLayout>
               </ProtectedRoute>
             } />
+            
+            {/* Alias route for /create */}
+            <Route path="/create" element={<Navigate to="/create-video" replace />} />
             
             <Route path="/settings" element={
               <ProtectedRoute>

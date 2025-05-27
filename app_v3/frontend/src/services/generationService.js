@@ -13,6 +13,12 @@ export const generationService = {
     return response.data;
   },
 
+  // Generate text-to-speech (alias for generateTTS)
+  generateTextToSpeech: async (ttsData) => {
+    const response = await api.post('/api/generate/text-to-speech', ttsData);
+    return response.data;
+  },
+
   // Generate video
   generateVideo: async (videoData) => {
     const response = await api.post('/api/generate/video', videoData);

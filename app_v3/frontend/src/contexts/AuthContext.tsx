@@ -17,7 +17,7 @@ interface AuthState {
 }
 
 interface AuthContextType extends AuthState {
-  login: (credentials: { username: string; password: string }) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   register: (userData: {
     username: string;
     email: string;
@@ -176,7 +176,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const loadUser = async () => {
     try {
       dispatch({ type: AUTH_ACTIONS.LOAD_USER_START });
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('access_token');
       
       if (!token) {
         dispatch({ type: AUTH_ACTIONS.LOAD_USER_FAILURE, payload: 'No token found' });
@@ -184,23 +184,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       const response = await authService.getProfile();
-      dispatch({ type: AUTH_ACTIONS.LOAD_USER_SUCCESS, payload: response.data.user });
+      dispatch({ type: AUTH_ACTIONS.LOAD_USER_SUCCESS, payload: response.user });
     } catch (error: any) {
       dispatch({ 
         type: AUTH_ACTIONS.LOAD_USER_FAILURE, 
         payload: error.response?.data?.message || 'Failed to load user' 
       });
-      localStorage.removeItem('token');
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
     }
   };
 
-  const login = async (credentials: { username: string; password: string }) => {
+  const login = async (email: string, password: string) => {
     try {
       dispatch({ type: AUTH_ACTIONS.LOGIN_START });
-      const response = await authService.login(credentials);
+      const response = await authService.login(email, password);
       
-      localStorage.setItem('token', response.data.token);
-      dispatch({ type: AUTH_ACTIONS.LOGIN_SUCCESS, payload: response.data.user });
+      // The authService already stores tokens in localStorage
+      dispatch({ type: AUTH_ACTIONS.LOGIN_SUCCESS, payload: response.user });
     } catch (error: any) {
       dispatch({ 
         type: AUTH_ACTIONS.LOGIN_FAILURE, 
@@ -225,8 +226,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       dispatch({ type: AUTH_ACTIONS.REGISTER_START });
       const response = await authService.register(userData);
       
-      localStorage.setItem('token', response.data.token);
-      dispatch({ type: AUTH_ACTIONS.REGISTER_SUCCESS, payload: response.data.user });
+      // The authService handles token storage
+      dispatch({ type: AUTH_ACTIONS.REGISTER_SUCCESS, payload: response.user });
     } catch (error: any) {
       dispatch({ 
         type: AUTH_ACTIONS.REGISTER_FAILURE, 
@@ -242,7 +243,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      localStorage.removeItem('token');
+      // authService.logout() already removes tokens, but let's be sure
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
     }
   };

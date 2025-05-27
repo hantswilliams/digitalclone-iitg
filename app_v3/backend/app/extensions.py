@@ -40,7 +40,13 @@ def make_celery(app):
         """Make celery tasks work with Flask app context"""
         def __call__(self, *args, **kwargs):
             with app.app_context():
-                return self.run(*args, **kwargs)
+                try:
+                    # Ensure we start with a fresh database session
+                    db.session.remove()
+                    return self.run(*args, **kwargs)
+                finally:
+                    # Clean up session after task completion
+                    db.session.remove()
     
     celery.Task = ContextTask
     return celery

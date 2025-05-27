@@ -7,8 +7,8 @@ const LoginPage = () => {
   const { login, isLoading, error, clearError } = useAuth();
   
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
+    email: 'demo@example.com',
+    password: 'TestPassword123!',
     rememberMe: false,
   });
 
@@ -184,6 +184,35 @@ const LoginPage = () => {
                 </svg>
               ) : null}
               Sign in
+            </button>
+          </div>
+
+          {/* Demo Login Button */}
+          <div className="mt-4">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-gray-50 text-gray-500">Quick Demo Login</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setFormData({
+                  email: 'demo@example.com',
+                  password: 'TestPassword123!',
+                  rememberMe: false
+                });
+                // Auto-submit after a short delay to show the credentials
+                setTimeout(() => {
+                  handleSubmit({ preventDefault: () => {} });
+                }, 100);
+              }}
+              className="mt-3 w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Login as Demo User
             </button>
           </div>
         </form>

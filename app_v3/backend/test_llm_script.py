@@ -100,10 +100,10 @@ def test_llm_service():
                 attempt += 1
                 
                 try:
-                    job_response = session.get(f"{BASE_URL}/api/jobs/{job_id}")
+                    # Use the new status endpoint for real-time monitoring
+                    job_response = session.get(f"{BASE_URL}/api/jobs/{job_id}/status")
                     if job_response.status_code == 200:
-                        job_data = job_response.json()
-                        job_status = job_data.get('job', job_data)  # Handle wrapped response
+                        job_status = job_response.json()
                         status = job_status['status']
                         progress = job_status.get('progress_percentage', 0)
                         
@@ -112,45 +112,53 @@ def test_llm_service():
                         if status == 'completed':
                             print("✅ PASS - Script generation completed successfully")
                             
-                            # Check if script asset was created
-                            if job_status.get('asset_ids'):
-                                print(f"   Generated script asset ID: {job_status['asset_ids'][-1]}")  # Last asset is the generated script
+                            # Get full job details now that it's completed
+                            full_job_response = session.get(f"{BASE_URL}/api/jobs/{job_id}")
+                            if full_job_response.status_code == 200:
+                                full_job_data = full_job_response.json()
+                                job_details = full_job_data.get('job', full_job_data)
                                 
-                                # Check job results for script content
-                                if job_status.get('results'):
-                                    results = job_status['results']
-                                    if 'script_content' in results:
-                                        script_preview = results['script_content']
-                                        print(f"   Script preview: {script_preview[:100]}...")
-                                        
-                                        # Get metadata from results
-                                        metadata = results.get('metadata', {})
-                                        analysis = results.get('analysis', {})
-                                        word_count = metadata.get('word_count') or analysis.get('word_count', 'N/A')
-                                        estimated_duration = metadata.get('estimated_duration') or analysis.get('estimated_duration', 'N/A')
-                                        
-                                        print(f"   Word count: {word_count}")
-                                        print(f"   Estimated duration: {estimated_duration} minutes")
-                                        print("✅ PASS - Script content and metadata available")
+                                # Check if script asset was created
+                                if job_details.get('asset_ids'):
+                                    print(f"   Generated script asset ID: {job_details['asset_ids'][-1]}")  # Last asset is the generated script
+                                    
+                                    # Check job results for script content
+                                    if job_details.get('results'):
+                                        results = job_details['results']
+                                        if 'script_content' in results:
+                                            script_preview = results['script_content']
+                                            print(f"   Script preview: {script_preview[:100]}...")
+                                            
+                                            # Get metadata from results
+                                            metadata = results.get('metadata', {})
+                                            analysis = results.get('analysis', {})
+                                            word_count = metadata.get('word_count') or analysis.get('word_count', 'N/A')
+                                            estimated_duration = metadata.get('estimated_duration') or analysis.get('estimated_duration', 'N/A')
+                                            
+                                            print(f"   Word count: {word_count}")
+                                            print(f"   Estimated duration: {estimated_duration} minutes")
+                                            print("✅ PASS - Script content and metadata available")
+                                        else:
+                                            print("⚠️  WARNING - Script content not found in results")
                                     else:
-                                        print("⚠️  WARNING - Script content not found in results")
+                                        print("⚠️  WARNING - No results data found")
+                                    
+                                    # Try to get the script asset details
+                                    script_asset_id = job_details['asset_ids'][-1]
+                                    asset_response = session.get(f"{BASE_URL}/api/assets/{script_asset_id}")
+                                    if asset_response.status_code == 200:
+                                        asset_data = asset_response.json()
+                                        asset = asset_data.get('asset', asset_data)  # Handle wrapped response
+                                        print(f"   Script asset type: {asset['asset_type']}")
+                                        print(f"   Script file: {asset['filename']}")
+                                        print(f"   File size: {asset['file_size']} bytes")
+                                        print("✅ PASS - Script asset created successfully")
+                                    else:
+                                        print(f"⚠️  WARNING - Could not retrieve script asset: {asset_response.text}")
                                 else:
-                                    print("⚠️  WARNING - No results data found")
-                                
-                                # Try to get the script asset details
-                                script_asset_id = job_status['asset_ids'][-1]
-                                asset_response = session.get(f"{BASE_URL}/api/assets/{script_asset_id}")
-                                if asset_response.status_code == 200:
-                                    asset_data = asset_response.json()
-                                    asset = asset_data.get('asset', asset_data)  # Handle wrapped response
-                                    print(f"   Script asset type: {asset['asset_type']}")
-                                    print(f"   Script file: {asset['filename']}")
-                                    print(f"   File size: {asset['file_size']} bytes")
-                                    print("✅ PASS - Script asset created successfully")
-                                else:
-                                    print(f"⚠️  WARNING - Could not retrieve script asset: {asset_response.text}")
+                                    print("⚠️  WARNING - No assets found")
                             else:
-                                print("⚠️  WARNING - No assets found")
+                                print("⚠️  WARNING - Could not get full job details")
                             break
                             
                         elif status == 'failed':

@@ -19,7 +19,7 @@ const Header = () => {
           {/* Logo/Brand */}
           <div className="flex items-center">
             <h1 className="text-xl font-bold text-gray-900">
-              Voice Clone Studio
+              IITG Clone Studio
             </h1>
           </div>
 

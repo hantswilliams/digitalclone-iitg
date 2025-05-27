@@ -15,6 +15,17 @@ from ..schemas import (
 )
 from ..utils import handle_errors
 
+
+def get_fresh_job(job_id, user_id):
+    """Get a fresh job instance from database with latest data"""
+    # Force database session refresh to get latest data from Celery workers
+    db.session.expire_all()
+    job = Job.query.filter_by(id=job_id, user_id=user_id).first()
+    if job:
+        db.session.refresh(job)
+    return job
+
+
 jobs_bp = Blueprint('jobs', __name__)
 
 # Initialize schemas
@@ -36,6 +47,9 @@ pagination_schema = PaginationSchema()
 def list_jobs():
     """List user's jobs with filtering and pagination"""
     user_id = get_jwt_identity()
+    
+    # Refresh session to get latest data from Celery workers
+    db.session.expire_all()
     
     # Get query parameters
     page = request.args.get('page', 1, type=int)
@@ -172,7 +186,8 @@ def get_job(job_id):
     """Get specific job details"""
     user_id = get_jwt_identity()
     
-    job = Job.query.filter_by(id=job_id, user_id=user_id).first()
+    # Get fresh job data from database
+    job = get_fresh_job(job_id, user_id)
     
     if not job:
         return jsonify(error_schema.dump({
@@ -358,3 +373,31 @@ def create_job_step(job_id):
     
     response_data = step.to_dict(include_details=True)
     return jsonify({'step': response_data}), 201
+
+
+@jobs_bp.route('/<int:job_id>/status', methods=['GET'])
+@jwt_required()
+@handle_errors
+def get_job_status(job_id):
+    """Get real-time job status (optimized for monitoring)"""
+    user_id = get_jwt_identity()
+    
+    # Get fresh job data from database
+    job = get_fresh_job(job_id, user_id)
+    
+    if not job:
+        return jsonify(error_schema.dump({
+            'message': 'Job not found'
+        })), 404
+    
+    # Return minimal status information for monitoring
+    return jsonify({
+        'job_id': job.id,
+        'status': job.status.value,
+        'progress_percentage': job.progress_percentage,
+        'created_at': job.created_at.isoformat() if job.created_at else None,
+        'started_at': job.started_at.isoformat() if job.started_at else None,
+        'completed_at': job.completed_at.isoformat() if job.completed_at else None,
+        'task_id': job.celery_task_id,
+        'results': job.results
+    }), 200

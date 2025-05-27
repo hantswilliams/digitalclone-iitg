@@ -195,6 +195,13 @@ def check_final_job_status(token, job_id):
     headers = {"Authorization": f"Bearer {token}"}
     
     try:
+        # First get quick status via status endpoint
+        status_response = requests.get(f"{API_BASE}/jobs/{job_id}/status", headers=headers)
+        if status_response.status_code == 200:
+            status_data = status_response.json()
+            print_status(f"Quick Status: {status_data['status']} ({status_data.get('progress_percentage', 0)}%)")
+        
+        # Then get full job details
         response = requests.get(f"{API_BASE}/jobs/{job_id}", headers=headers)
         
         if response.status_code == 200:
