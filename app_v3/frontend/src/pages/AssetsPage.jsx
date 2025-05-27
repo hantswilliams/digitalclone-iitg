@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { assetService } from '../services/assetService';
 import { PlusIcon, TrashIcon, ArrowDownTrayIcon, EyeIcon } from '@heroicons/react/24/outline';
 import AssetUpload from '../components/AssetUpload';
+import AssetPreview from '../components/AssetPreview';
 
 const AssetTypeFilter = ({ activeFilter, onFilterChange }) => {
   const filters = [
@@ -126,6 +127,7 @@ const AssetsPage = ({ openUploadModal = false }) => {
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('');
   const [showUploadModal, setShowUploadModal] = useState(openUploadModal);
+  const [previewAsset, setPreviewAsset] = useState(null);
 
   const loadAssets = useCallback(async () => {
     try {
@@ -164,8 +166,7 @@ const AssetsPage = ({ openUploadModal = false }) => {
   };
 
   const handleView = (asset) => {
-    // TODO: Implement asset preview modal
-    console.log('Viewing asset:', asset);
+    setPreviewAsset(asset);
   };
 
   const handleUploadComplete = (newAsset) => {
@@ -187,14 +188,6 @@ const AssetsPage = ({ openUploadModal = false }) => {
       </div>
     );
   }
-
-  console.log('🎨 AssetsPage: Rendering component');
-  console.log('📊 AssetsPage: Current state:', { 
-    assetsLength: assets.length, 
-    loading, 
-    error, 
-    filter 
-  });
 
   return (
     <div className="p-6">
@@ -255,6 +248,14 @@ const AssetsPage = ({ openUploadModal = false }) => {
         <AssetUpload
           onUploadComplete={handleUploadComplete}
           onClose={() => setShowUploadModal(false)}
+        />
+      )}
+
+      {/* Asset Preview Modal */}
+      {previewAsset && (
+        <AssetPreview
+          asset={previewAsset}
+          onClose={() => setPreviewAsset(null)}
         />
       )}
     </div>

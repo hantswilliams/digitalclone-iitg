@@ -35,11 +35,12 @@ const WizardSteps = ({ currentStep, steps }) => {
 const AssetSelector = ({ assetType, selectedAsset, onSelect, label, description }) => {
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [playingAudio, setPlayingAudio] = useState(null);
 
   const loadAssets = useCallback(async () => {
     try {
       const response = await assetService.getAssets({ type: assetType, status: 'ready' });
-      setAssets(response.data || []);
+      setAssets(response.assets || []);
     } catch (err) {
       console.error('Error loading assets:', err);
     } finally {
@@ -58,6 +59,28 @@ const AssetSelector = ({ assetType, selectedAsset, onSelect, label, description 
       case 'script': return '📄';
       default: return '📁';
     }
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const playVoiceSample = (e, asset) => {
+    e.stopPropagation(); // Prevent selecting the asset
+    
+    if (playingAudio) {
+      playingAudio.pause();
+      setPlayingAudio(null);
+    }
+
+    const audio = new Audio(asset.download_url);
+    audio.onended = () => setPlayingAudio(null);
+    audio.play();
+    setPlayingAudio(audio);
   };
 
   if (loading) {
@@ -104,16 +127,39 @@ const AssetSelector = ({ assetType, selectedAsset, onSelect, label, description 
               }`}
             >
               <div className="flex items-center space-x-3">
-                <div className="text-xl">{getAssetIcon(asset.asset_type)}</div>
+                {assetType === 'portrait' && asset.download_url ? (
+                  <img
+                    src={asset.download_url}
+                    alt={asset.filename}
+                    className="w-12 h-12 object-cover rounded-lg border border-gray-200"
+                  />
+                ) : (
+                  <div className="text-xl">{getAssetIcon(asset.asset_type)}</div>
+                )}
                 <div className="flex-1">
                   <h4 className="font-medium text-gray-900">{asset.filename}</h4>
                   <p className="text-sm text-gray-500">
                     Uploaded: {new Date(asset.created_at).toLocaleDateString()}
+                    {asset.file_size && ` • ${formatFileSize(asset.file_size)}`}
                   </p>
+                  {asset.description && (
+                    <p className="text-sm text-gray-600 mt-1">{asset.description}</p>
+                  )}
                 </div>
-                {selectedAsset?.id === asset.id && (
-                  <div className="text-blue-500">✓</div>
-                )}
+                <div className="flex items-center space-x-2">
+                  {assetType === 'voice_sample' && asset.download_url && (
+                    <button
+                      onClick={(e) => playVoiceSample(e, asset)}
+                      className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                      title="Preview audio"
+                    >
+                      <PlayIcon className="h-4 w-4" />
+                    </button>
+                  )}
+                  {selectedAsset?.id === asset.id && (
+                    <div className="text-blue-500 text-xl">✓</div>
+                  )}
+                </div>
               </div>
             </div>
           ))}
@@ -127,6 +173,41 @@ const ScriptInput = ({ script, onScriptChange, selectedVoice }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [audioPreview, setAudioPreview] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [scriptAssets, setScriptAssets] = useState([]);
+  const [loadingAssets, setLoadingAssets] = useState(false);
+  const [inputMode, setInputMode] = useState('write'); // 'write' or 'select'
+
+  // Load existing script assets
+  useEffect(() => {
+    const loadScriptAssets = async () => {
+      try {
+        setLoadingAssets(true);
+        const response = await assetService.getAssets({ type: 'script', status: 'ready' });
+        setScriptAssets(response.assets || []);
+      } catch (err) {
+        console.error('Error loading script assets:', err);
+      } finally {
+        setLoadingAssets(false);
+      }
+    };
+
+    loadScriptAssets();
+  }, []);
+
+  const loadScriptContent = async (asset) => {
+    try {
+      const response = await fetch(asset.download_url);
+      if (!response.ok) {
+        throw new Error('Failed to fetch script content');
+      }
+      const text = await response.text();
+      onScriptChange(text);
+      setInputMode('write'); // Switch to write mode after loading
+    } catch (err) {
+      console.error('Error loading script content:', err);
+      alert('Failed to load script content');
+    }
+  };
 
   const generatePreview = async () => {
     if (!script.trim() || !selectedVoice) return;
@@ -161,49 +242,121 @@ const ScriptInput = ({ script, onScriptChange, selectedVoice }) => {
     <div className="space-y-4">
       <div>
         <h3 className="text-lg font-medium text-gray-900">Script</h3>
-        <p className="text-sm text-gray-600">Enter the text you want your digital avatar to speak</p>
+        <p className="text-sm text-gray-600">Choose an existing script or write a new one</p>
       </div>
 
-      <textarea
-        value={script}
-        onChange={(e) => onScriptChange(e.target.value)}
-        placeholder="Enter your script here..."
-        rows={8}
-        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-      />
+      {/* Mode Selector */}
+      <div className="flex space-x-4 border-b border-gray-200">
+        <button
+          onClick={() => setInputMode('write')}
+          className={`pb-2 px-1 text-sm font-medium border-b-2 ${
+            inputMode === 'write'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Write New Script
+        </button>
+        <button
+          onClick={() => setInputMode('select')}
+          className={`pb-2 px-1 text-sm font-medium border-b-2 ${
+            inputMode === 'select'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Use Existing Script ({scriptAssets.length})
+        </button>
+      </div>
 
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-gray-500">
-          {script.length} characters • ~{Math.ceil(script.length / 150)} seconds
-        </div>
-        
-        {selectedVoice && script.trim() && (
-          <div className="flex items-center space-x-2">
-            {audioPreview && (
-              <button
-                onClick={playPreview}
-                disabled={isPlaying}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+      {inputMode === 'select' && (
+        <div className="space-y-2">
+          {loadingAssets ? (
+            <div className="animate-pulse space-y-2">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-16 bg-gray-200 rounded"></div>
+              ))}
+            </div>
+          ) : scriptAssets.length === 0 ? (
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+              <div className="text-2xl mb-2">📄</div>
+              <p className="text-gray-500">No script assets available</p>
+              <a
+                href="/assets"
+                className="text-blue-600 hover:text-blue-500 text-sm font-medium mt-2 inline-block"
               >
-                {isPlaying ? (
-                  <XMarkIcon className="h-4 w-4 mr-1" />
-                ) : (
-                  <PlayIcon className="h-4 w-4 mr-1" />
-                )}
-                {isPlaying ? 'Playing...' : 'Play Preview'}
-              </button>
-            )}
+                Upload script file →
+              </a>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {scriptAssets.map((asset) => (
+                <div
+                  key={asset.id}
+                  onClick={() => loadScriptContent(asset)}
+                  className="p-4 border border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="text-xl">📄</div>
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-900">{asset.filename}</h4>
+                      <p className="text-sm text-gray-500">
+                        Uploaded: {new Date(asset.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="text-blue-600 text-sm font-medium">Load Script</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {inputMode === 'write' && (
+        <>
+          <textarea
+            value={script}
+            onChange={(e) => onScriptChange(e.target.value)}
+            placeholder="Enter your script here..."
+            rows={8}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-500">
+              {script.length} characters • ~{Math.ceil(script.length / 150)} seconds
+            </div>
             
-            <button
-              onClick={generatePreview}
-              disabled={isGenerating}
-              className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-            >
-              {isGenerating ? 'Generating...' : 'Generate Preview'}
-            </button>
+            {selectedVoice && script.trim() && (
+              <div className="flex items-center space-x-2">
+                {audioPreview && (
+                  <button
+                    onClick={playPreview}
+                    disabled={isPlaying}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    {isPlaying ? (
+                      <XMarkIcon className="h-4 w-4 mr-1" />
+                    ) : (
+                      <PlayIcon className="h-4 w-4 mr-1" />
+                    )}
+                    {isPlaying ? 'Playing...' : 'Play Preview'}
+                  </button>
+                )}
+                
+                <button
+                  onClick={generatePreview}
+                  disabled={isGenerating}
+                  className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {isGenerating ? 'Generating...' : 'Generate Preview'}
+                </button>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 };
@@ -264,7 +417,21 @@ const ReviewStep = ({ portrait, voice, script, onGenerate, isGenerating }) => {
       </div>
 
       <button
-        onClick={onGenerate}
+        onClick={() => {
+          console.log('🔘 Generate Video button clicked');
+          console.log('📍 Button state:', { 
+            isGenerating, 
+            hasPortrait: !!portrait, 
+            hasVoice: !!voice, 
+            hasScript: !!script,
+            onGenerate: typeof onGenerate 
+          });
+          if (onGenerate) {
+            onGenerate();
+          } else {
+            console.error('❌ onGenerate is not defined!');
+          }
+        }}
         disabled={isGenerating || !portrait || !voice || !script}
         className="w-full px-4 py-3 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
       >
@@ -312,29 +479,50 @@ const CreateVideoPage = () => {
   };
 
   const handleGenerate = async () => {
+    console.log('🎬 handleGenerate called');
+    console.log('📋 Current state:', {
+      selectedPortrait: selectedPortrait?.id,
+      selectedVoice: selectedVoice?.id,
+      scriptLength: script?.length,
+      isGenerating
+    });
+
     try {
       setIsGenerating(true);
+      console.log('⏳ Setting isGenerating to true');
       
       const jobData = {
-        job_type: 'full_pipeline',
+        title: 'Video Generation',
         description: 'Video generation from create wizard',
-        job_parameters: {
+        job_type: 'full_pipeline',
+        priority: 'normal',
+        parameters: {
           portrait_asset_id: selectedPortrait.id,
           voice_asset_id: selectedVoice.id,
           script: script,
           output_format: 'mp4'
         },
-        priority: 'normal'
+        asset_ids: [selectedPortrait.id, selectedVoice.id]
       };
 
+      console.log('📤 Sending job data:', jobData);
       const response = await jobService.createJob(jobData);
-      setGeneratedJob(response.data);
+      console.log('✅ Job creation response:', response);
+      
+      setGeneratedJob(response.data || response);
+      console.log('🎯 Setting generatedJob:', response.data || response);
       
     } catch (err) {
-      console.error('Error generating video:', err);
+      console.error('❌ Error generating video:', err);
+      console.error('📊 Error details:', {
+        message: err.message,
+        status: err.response?.status,
+        data: err.response?.data
+      });
       alert('Failed to start video generation. Please try again.');
     } finally {
       setIsGenerating(false);
+      console.log('🔄 Setting isGenerating to false');
     }
   };
 
@@ -417,13 +605,22 @@ const CreateVideoPage = () => {
         )}
 
         {currentStep === 3 && (
-          <ReviewStep
-            portrait={selectedPortrait}
-            voice={selectedVoice}
-            script={script}
-            onGenerate={handleGenerate}
-            isGenerating={isGenerating}
-          />
+          <>
+            {console.log('📍 Rendering ReviewStep:', {
+              currentStep,
+              selectedPortrait: selectedPortrait?.id,
+              selectedVoice: selectedVoice?.id,
+              scriptLength: script?.length,
+              handleGenerate: typeof handleGenerate
+            })}
+            <ReviewStep
+              portrait={selectedPortrait}
+              voice={selectedVoice}
+              script={script}
+              onGenerate={handleGenerate}
+              isGenerating={isGenerating}
+            />
+          </>
         )}
       </div>
 

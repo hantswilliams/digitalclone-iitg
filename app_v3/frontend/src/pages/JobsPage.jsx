@@ -232,7 +232,7 @@ const JobsPage = () => {
       if (typeFilter) filters.type = typeFilter;
       
       const response = await jobService.getJobs(filters);
-      setJobs(response.data || []);
+      setJobs(response.jobs || []);
     } catch (err) {
       setError('Failed to load jobs');
       console.error('Error loading jobs:', err);
@@ -277,7 +277,7 @@ const JobsPage = () => {
   const handleView = async (job) => {
     try {
       const jobDetails = await jobService.getJob(job.id);
-      setSelectedJob(jobDetails.data);
+      setSelectedJob(jobDetails.job);
     } catch (err) {
       setError('Failed to load job details');
       console.error('Error loading job details:', err);

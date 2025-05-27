@@ -93,7 +93,7 @@ const Sidebar = () => {
         </h3>
         <div className="space-y-2">
           <NavLink
-            to="/create/step1"
+            to="/create-video"
             className="flex items-center px-4 py-2 text-sm text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded-lg transition-colors duration-200"
           >
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -32,12 +32,12 @@ const DashboardPage = () => {
       setError(null);
 
       // Load recent jobs
-      const jobsResponse = await jobService.listJobs({ limit: 5 });
-      setRecentJobs(jobsResponse.data.jobs || []);
+      const jobsResponse = await jobService.getJobs({ limit: 5 });
+      setRecentJobs(jobsResponse.jobs || []);
 
       // Calculate stats from jobs
-      const allJobsResponse = await jobService.listJobs({ limit: 100 });
-      const allJobs = allJobsResponse.data.jobs || [];
+      const allJobsResponse = await jobService.getJobs({ limit: 100 });
+      const allJobs = allJobsResponse.jobs || [];
       
       const stats = {
         totalJobs: allJobs.length,
@@ -56,24 +56,65 @@ const DashboardPage = () => {
   };
 
   const checkSystemStatus = async () => {
+    console.log('🔍 Checking system status...');
+    
+    const checkService = async (serviceName, serviceCall) => {
+      try {
+        console.log(`🔧 Checking ${serviceName}...`);
+        const result = await serviceCall();
+        console.log(`✅ ${serviceName} response:`, result);
+        
+        // Handle different response formats
+        const isHealthy = result?.status === 'healthy' || 
+                         result?.status === 'connected' ||
+                         result?.redis_status === 'connected' ||
+                         result?.service === 'kdtalker' ||
+                         result?.service === 'zyphra_tts' ||
+                         result?.available === true;
+        
+        return isHealthy;
+      } catch (error) {
+        console.error(`❌ ${serviceName} error:`, error);
+        console.error(`📊 ${serviceName} error details:`, {
+          message: error.message,
+          status: error.response?.status,
+          data: error.response?.data
+        });
+        
+        // If it's an auth error (401), assume service might be healthy but we can't check
+        if (error.response?.status === 401) {
+          console.warn(`🔒 ${serviceName} requires authentication - assuming unavailable for status display`);
+        }
+        
+        return false;
+      }
+    };
+
     try {
-      // Check KdTalker service
-      const kdTalkerStatus = await generationService.validateService('kdtalker');
+      // Check all services in parallel
+      const [videoStatus, ttsStatus, workerStatus] = await Promise.all([
+        checkService('Video (KdTalker)', () => generationService.getVideoStatus()),
+        checkService('TTS (Zyphra)', () => generationService.getTTSStatus()),
+        checkService('Worker Queue', () => generationService.getWorkerStatus())
+      ]);
       
-      // Check Zyphra TTS service
-      const zyphraStatus = await generationService.validateService('zyphra_tts');
+      const newStatus = {
+        kdTalker: videoStatus,
+        zyphraTTS: ttsStatus,
+        celeryWorker: workerStatus
+      };
       
-      // Note: We would need a worker status endpoint to check Celery
-      // For now, we'll assume it's running if we can make API calls
+      console.log('📊 Final system status:', newStatus);
+      setSystemStatus(newStatus);
       
-      setSystemStatus({
-        kdTalker: kdTalkerStatus.data?.available || false,
-        zyphraTTS: zyphraStatus.data?.available || false,
-        celeryWorker: true // Assume running for now
-      });
     } catch (error) {
-      console.error('Error checking system status:', error);
-      // Don't set error state for system status checks
+      console.error('❌ System status check failed:', error);
+      // Set all services as unavailable on error
+      setSystemStatus({
+        kdTalker: false,
+        zyphraTTS: false,
+        celeryWorker: false
+      });
     }
   };
 
