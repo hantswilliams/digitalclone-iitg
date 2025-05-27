@@ -18,6 +18,10 @@ import time
 import requests
 import tempfile
 from io import BytesIO
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Add the backend directory to the path
 sys.path.insert(0, '/Users/hantswilliams/Development/python/digitalclone-iitg/app_v3/backend')

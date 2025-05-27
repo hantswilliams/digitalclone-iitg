@@ -1,7 +1,7 @@
 """
 Flask application factory for Voice-Cloned Talking-Head Lecturer
 """
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request, make_response
 from flask_cors import CORS
 
 from .extensions import db, migrate, jwt, make_celery, init_redis
@@ -24,8 +24,12 @@ def create_app(config_class=Config):
     from .services.storage import storage_service
     storage_service.init_app(app)
     
-    # Configure CORS
-    CORS(app, origins=app.config.get('CORS_ORIGINS', ['http://localhost:3000']))
+    # Configure CORS - Allow all for development
+    CORS(app, 
+         origins=['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'],
+         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+         allow_headers=['Content-Type', 'Authorization'],
+         supports_credentials=True)
     
     # Initialize Celery with Flask app context
     celery = make_celery(app)

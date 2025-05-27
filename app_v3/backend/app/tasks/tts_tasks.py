@@ -345,8 +345,11 @@ def validate_tts_service(self):
         error_msg = f"TTS service validation failed: {str(exc)}"
         logger.error(error_msg)
         
-        self.update_state(
-            state='FAILURE', 
-            meta={'error': error_msg}
-        )
-        raise exc
+        # Return error state instead of raising exception
+        return {
+            'status': 'error',
+            'api_status': 'error',
+            'api_url': getattr(exc, 'api_url', 'unknown'),
+            'error': error_msg,
+            'exception_type': type(exc).__name__
+        }

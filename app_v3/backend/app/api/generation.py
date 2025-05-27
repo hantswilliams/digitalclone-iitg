@@ -251,7 +251,17 @@ def tts_service_status():
     try:
         # Queue validation task
         task = validate_tts_service.apply_async()
-        result = task.get(timeout=30)  # Wait up to 30 seconds
+        
+        try:
+            result = task.get(timeout=30)  # Wait up to 30 seconds
+        except Exception as task_exc:
+            # Handle task execution errors
+            result = {
+                'status': 'error',
+                'api_status': 'error',
+                'error': f"Task execution failed: {str(task_exc)}",
+                'exception_type': type(task_exc).__name__
+            }
         
         return jsonify({
             'service': 'zyphra_tts',
@@ -263,7 +273,10 @@ def tts_service_status():
         return jsonify({
             'service': 'zyphra_tts',
             'status': 'error',
-            'details': {'error': str(e)}
+            'details': {
+                'error': f"Failed to queue validation task: {str(e)}",
+                'exception_type': type(e).__name__
+            }
         }), 500
 
 

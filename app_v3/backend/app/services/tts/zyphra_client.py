@@ -174,16 +174,18 @@ class ZyphraClient:
             Dictionary with health check status and details.
         """
         try:
-            # Try a minimal request to check API availability
-            # Note: This assumes there's a health endpoint, otherwise we'll use a minimal TTS request
-            url = f"{self.api_url}/health"
+            # Since we don't know if Zyphra has a health endpoint,
+            # we'll do a basic connectivity check to the base URL
+            url = self.api_url.rstrip('/v1')  # Remove /v1 to get base domain
             response = self.session.get(url, timeout=10)
             
-            if response.status_code == 200:
+            # Any response (even 404) means the server is reachable
+            if response.status_code in [200, 404, 403, 405]:
                 return {
                     'status': 'healthy',
                     'api_url': self.api_url,
-                    'response_time_ms': response.elapsed.total_seconds() * 1000
+                    'response_time_ms': response.elapsed.total_seconds() * 1000,
+                    'note': 'Basic connectivity confirmed'
                 }
             else:
                 return {

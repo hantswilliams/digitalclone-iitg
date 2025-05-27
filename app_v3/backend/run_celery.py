@@ -5,6 +5,10 @@ Celery worker runner for the Voice Clone app with proper Flask context
 import os
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Add the backend directory to the path
 backend_dir = Path(__file__).parent
