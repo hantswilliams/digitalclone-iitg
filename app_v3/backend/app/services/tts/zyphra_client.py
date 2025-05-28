@@ -1,22 +1,25 @@
 """
 Zyphra TTS API client for voice cloning and text-to-speech generation.
 
-This module provides a client for the Zyphra TTS API using the official Zyphra package.
+This module provides a client for the Zyphra TTS API using the Gradio client approach
+to access the Hugging Face Space that provides Zyphra functionality.
 Supports voice cloning from reference audio samples and text-to-speech generation.
 """
 
 import os
 import base64
 import logging
+import tempfile
+import shutil
 from typing import Optional, Dict, Any, Union
 from io import BytesIO
 from flask import current_app
 
 try:
-    from zyphra import ZyphraClient
-    Zyphra = ZyphraClient
+    from gradio_client import Client, handle_file
 except ImportError:
-    Zyphra = None
+    Client = None
+    handle_file = None
 
 logger = logging.getLogger(__name__)
 
@@ -31,10 +34,10 @@ class ZyphraAPIError(Exception):
 
 class ZyphraClient:
     """
-    Client for Zyphra TTS API integration using the official Zyphra package.
+    Client for Zyphra TTS API integration using Gradio client to access HuggingFace Space.
     
-    Handles voice cloning and text-to-speech generation using the Zyphra API.
-    Supports base64 audio encoding and WebM output format.
+    Handles voice cloning and text-to-speech generation using the Zyphra API through
+    the ginigen/VoiceClone-TTS Hugging Face Space.
     """
     
     def __init__(self, api_key: Optional[str] = None):
@@ -42,20 +45,15 @@ class ZyphraClient:
         Initialize the Zyphra client.
         
         Args:
-            api_key: Zyphra API key. If not provided, reads from config.
+            api_key: Not used for Gradio client approach, kept for compatibility.
         """
-        if Zyphra is None:
-            raise ImportError("Zyphra package is required. Install with: pip install zyphra")
+        if Client is None or handle_file is None:
+            raise ImportError("gradio_client package is required. Install with: pip install gradio_client")
         
-        self.api_key = api_key or self._get_config_value('ZYPHRA_API_KEY')
+        # Initialize the Gradio client
+        self.gradio_client = Client("ginigen/VoiceClone-TTS")
         
-        if not self.api_key:
-            raise ValueError("Zyphra API key is required. Set ZYPHRA_API_KEY environment variable.")
-        
-        # Initialize the official Zyphra client
-        self.client = Zyphra(api_key=self.api_key)
-        
-        logger.info(f"Initialized Zyphra client with official package")
+        logger.info(f"Initialized Zyphra client with Gradio Space: ginigen/VoiceClone-TTS")
     
     def _get_config_value(self, key: str, default: Optional[str] = None) -> Optional[str]:
         """Get configuration value from Flask config or environment."""
@@ -66,145 +64,181 @@ class ZyphraClient:
             # Not in Flask context, use environment variable
             return os.environ.get(key, default)
     
-    def _encode_audio_to_base64(self, audio_data: Union[bytes, str, BytesIO]) -> str:
+    def _prepare_audio_file(self, audio_data: Union[bytes, str, BytesIO]) -> str:
         """
-        Encode audio data to base64 string for API request.
+        Prepare audio data for Gradio client by saving it to a temporary file.
         
         Args:
             audio_data: Audio data as bytes, file path string, or BytesIO object.
             
         Returns:
-            Base64 encoded audio string.
+            Path to temporary audio file.
             
         Raises:
-            ZyphraAPIError: If audio encoding fails.
+            ZyphraAPIError: If audio preparation fails.
         """
         try:
             if isinstance(audio_data, str):
-                # File path
-                with open(audio_data, 'rb') as f:
-                    audio_bytes = f.read()
-            elif isinstance(audio_data, BytesIO):
-                # BytesIO object
-                audio_bytes = audio_data.getvalue()
-            elif isinstance(audio_data, bytes):
-                # Raw bytes
-                audio_bytes = audio_data
+                # File path - return as is
+                if os.path.exists(audio_data):
+                    return audio_data
+                else:
+                    raise ValueError(f"Audio file not found: {audio_data}")
+                    
+            elif isinstance(audio_data, (bytes, BytesIO)):
+                # Save to temporary file
+                if isinstance(audio_data, BytesIO):
+                    audio_bytes = audio_data.getvalue()
+                else:
+                    audio_bytes = audio_data
+                
+                # Create temporary file
+                temp_fd, temp_path = tempfile.mkstemp(suffix='.wav', prefix='zyphra_audio_')
+                try:
+                    with os.fdopen(temp_fd, 'wb') as temp_file:
+                        temp_file.write(audio_bytes)
+                    return temp_path
+                except:
+                    os.unlink(temp_path)  # Clean up on error
+                    raise
+                    
             else:
                 raise ValueError(f"Unsupported audio data type: {type(audio_data)}")
             
-            encoded = base64.b64encode(audio_bytes).decode('utf-8')
-            logger.debug(f"Encoded audio data to base64 ({len(encoded)} characters)")
-            return encoded
-            
         except Exception as e:
-            raise ZyphraAPIError(f"Failed to encode audio to base64: {str(e)}")
+            raise ZyphraAPIError(f"Failed to prepare audio file: {str(e)}")
     
     def generate_speech(
         self,
         text: str,
         speaker_audio: Union[bytes, str, BytesIO],
         speaking_rate: float = 15.0,
-        timeout: int = 60
+        timeout: int = 300  # Gradio can be slower, so longer timeout
     ) -> bytes:
         """
-        Generate speech using voice cloning with the official Zyphra client.
+        Generate speech using voice cloning with the Gradio client.
         
         Args:
             text: Text to convert to speech.
             speaker_audio: Reference audio for voice cloning (bytes, file path, or BytesIO).
             speaking_rate: Speaking rate (default: 15.0).
-            timeout: Request timeout in seconds (ignored for official client).
+            timeout: Request timeout in seconds.
             
         Returns:
-            Generated speech audio as bytes (WebM format).
+            Generated speech audio as bytes (WAV format).
             
         Raises:
             ZyphraAPIError: If the API request fails.
         """
+        temp_audio_path = None
         try:
-            # Encode reference audio to base64
-            speaker_audio_b64 = self._encode_audio_to_base64(speaker_audio)
+            # Prepare audio file for Gradio
+            temp_audio_path = self._prepare_audio_file(speaker_audio)
             
-            logger.info(f"Generating speech with Zyphra API - text length: {len(text)}, speaking_rate: {speaking_rate}")
-            logger.debug(f"Speaker audio encoded to {len(speaker_audio_b64)} characters")
+            logger.info(f"Generating speech with Zyphra via Gradio - text length: {len(text)}, speaking_rate: {speaking_rate}")
+            logger.debug(f"Using voice file: {temp_audio_path}")
             
-            # Use the official Zyphra client to generate speech
-            audio_data = self.client.audio.speech.create(
+            # Use the Gradio client to generate speech
+            result = self.gradio_client.predict(
+                model_choice="Zyphra/Zonos-v0.1-transformer",
                 text=text,
-                speaker_audio=speaker_audio_b64,
-                speaking_rate=speaking_rate
+                language="en-us",  # TODO: Make this configurable
+                speaker_audio=handle_file(temp_audio_path),
+                prefix_audio=handle_file('https://github.com/gradio-app/gradio/raw/main/test/test_files/audio_sample.wav'),
+                e1=1,          # Happiness
+                e2=0.05,       # Sadness
+                e3=0.05,       # Disgust
+                e4=0.05,       # Fear
+                e5=0.05,       # Surprise
+                e6=0.05,       # Anger
+                e7=0.1,        # Other
+                e8=0.2,        # Neutral
+                vq_single=0.78,      # Voice Clarity
+                fmax=24000,          # Frequency Max (Hz)
+                pitch_std=45,        # Pitch Variation
+                speaking_rate=speaking_rate,    # Speaking Rate
+                dnsmos_ovrl=4,       # Voice Quality
+                speaker_noised=False, # Denoise Speaker
+                cfg_scale=2,         # Guidance Scale
+                min_p=0.15,          # Min P (Randomness)
+                seed=420,            # Seed
+                randomize_seed=True, # Randomize Seed
+                unconditional_keys=["emotion"], # Unconditional Keys
+                api_name="/generate_audio"
             )
             
-            # The official client should return bytes directly
-            if isinstance(audio_data, bytes):
-                logger.info(f"Successfully generated speech ({len(audio_data)} bytes)")
-                return audio_data
-            else:
-                # If it returns something else, try to convert it
-                logger.warning(f"Unexpected audio data type: {type(audio_data)}")
-                if hasattr(audio_data, 'content'):
-                    return audio_data.content
-                elif hasattr(audio_data, 'data'):
-                    return audio_data.data
+            # Result should be a tuple: (generated_audio_filepath, seed)
+            if result and len(result) >= 1:
+                generated_audio_path = result[0]
+                seed_used = result[1] if len(result) > 1 else "unknown"
+                
+                # Read the generated audio file
+                if hasattr(generated_audio_path, 'name'):
+                    actual_path = generated_audio_path.name
                 else:
-                    raise ZyphraAPIError(f"Unexpected audio data format: {type(audio_data)}")
+                    actual_path = str(generated_audio_path)
+                
+                if os.path.exists(actual_path):
+                    with open(actual_path, 'rb') as f:
+                        audio_data = f.read()
+                    
+                    logger.info(f"Successfully generated speech ({len(audio_data)} bytes, seed: {seed_used})")
+                    return audio_data
+                else:
+                    raise ZyphraAPIError(f"Generated audio file not found: {actual_path}")
+            else:
+                raise ZyphraAPIError("No result returned from Gradio TTS generation")
                 
         except Exception as e:
             if isinstance(e, ZyphraAPIError):
                 raise
             
-            # Handle different types of exceptions from the official client
+            # Handle different types of exceptions
             error_msg = str(e)
-            if 'API key' in error_msg.lower():
-                raise ZyphraAPIError(f"Authentication error: {error_msg}")
-            elif 'rate limit' in error_msg.lower():
-                raise ZyphraAPIError(f"Rate limit exceeded: {error_msg}")
-            elif 'network' in error_msg.lower() or 'connection' in error_msg.lower():
+            if 'timeout' in error_msg.lower():
+                raise ZyphraAPIError(f"Request timed out: {error_msg}")
+            elif 'connection' in error_msg.lower() or 'network' in error_msg.lower():
                 raise ZyphraAPIError(f"Network error: {error_msg}")
             else:
                 raise ZyphraAPIError(f"TTS generation failed: {error_msg}")
+        
+        finally:
+            # Clean up temporary file if we created one
+            if temp_audio_path and temp_audio_path != speaker_audio and os.path.exists(temp_audio_path):
+                try:
+                    os.unlink(temp_audio_path)
+                except:
+                    pass  # Ignore cleanup errors
     
     def health_check(self) -> Dict[str, Any]:
         """
-        Check if the Zyphra API is accessible and responding.
+        Check if the Zyphra Gradio Space is accessible and responding.
         
         Returns:
             Dictionary with health check status and details.
         """
         try:
-            # Try a simple API call to check connectivity
-            # We'll use a minimal text to avoid consuming too many credits
-            test_audio_b64 = base64.b64encode(b"test").decode('utf-8')
-            
-            # This might fail but will tell us if the API is reachable
-            self.client.audio.speech.create(
-                text="test",
-                speaker_audio=test_audio_b64,
-                speaking_rate=15.0
-            )
+            # Try to get the space info to check if it's accessible
+            # This is a lightweight check
+            info = self.gradio_client.view_api()
             
             return {
                 'status': 'healthy',
-                'note': 'API is accessible and responding'
+                'note': 'Gradio Space is accessible',
+                'space_info': 'ginigen/VoiceClone-TTS'
             }
             
         except Exception as e:
             error_msg = str(e)
-            if 'authentication' in error_msg.lower() or 'api key' in error_msg.lower():
+            if 'connection' in error_msg.lower() or 'network' in error_msg.lower():
                 return {
-                    'status': 'authentication_error',
-                    'error': f"Authentication failed: {error_msg}"
-                }
-            elif 'rate limit' in error_msg.lower():
-                return {
-                    'status': 'rate_limited',
-                    'error': f"Rate limit exceeded: {error_msg}"
+                    'status': 'connection_error',
+                    'error': f"Cannot connect to Gradio Space: {error_msg}"
                 }
             else:
                 return {
                     'status': 'unhealthy',
-                    'error': f"API error: {error_msg}"
+                    'error': f"Gradio Space error: {error_msg}"
                 }
     
     def validate_configuration(self) -> Dict[str, Any]:
@@ -216,18 +250,13 @@ class ZyphraClient:
         """
         issues = []
         
-        if not self.api_key:
-            issues.append("Missing API key")
-        elif len(self.api_key) < 10:
-            issues.append("API key appears to be too short")
-        
-        if Zyphra is None:
-            issues.append("Zyphra package not installed")
+        if Client is None:
+            issues.append("gradio_client package not installed")
         
         return {
             'valid': len(issues) == 0,
-            'has_api_key': bool(self.api_key),
-            'has_zyphra_package': Zyphra is not None,
+            'has_gradio_client': Client is not None,
+            'space_url': 'ginigen/VoiceClone-TTS',
             'issues': issues
         }
 

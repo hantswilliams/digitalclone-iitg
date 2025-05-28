@@ -11,7 +11,7 @@ from flask import current_app
 from ..extensions import celery, db
 from ..models import Job, JobStep, Asset, JobStatus, JobType
 from ..models.asset import AssetType
-from ..services.tts import ZyphraClient
+from ..services.tts import IndexTTSClient
 from ..services.storage import storage_service
 
 logger = logging.getLogger(__name__)
@@ -61,45 +61,53 @@ def generate_speech(self, job_id: int, text: str, voice_asset_id: int):
             
             voice_audio_data = storage_service.download_file(voice_asset.storage_path)
             
-            # Initialize Zyphra client
+            # Initialize IndexTTS client
             self.update_state(state='PROGRESS', meta={'progress': 20, 'status': 'Initializing TTS service'})
-            job.update_progress(20, 'Connecting to Zyphra TTS service')
+            job.update_progress(20, 'Connecting to IndexTTS service')
             
-            zyphra_client = ZyphraClient()
+            indextts_client = IndexTTSClient()
             
-            # Generate speech using Zyphra
+            # Generate speech using IndexTTS
             self.update_state(state='PROGRESS', meta={'progress': 30, 'status': 'Generating speech with voice clone'})
             job.update_progress(30, 'Generating speech with cloned voice')
             
-            speech_webm_data = zyphra_client.generate_speech(
+            speech_audio_data = indextts_client.generate_speech(
                 text=text,
-                speaker_audio=voice_audio_data,
-                speaking_rate=15.0  # TODO: Make this configurable
+                speaker_audio=voice_audio_data
             )
             
-            # Store the WebM audio in MinIO
+            # Store the generated audio in MinIO
             self.update_state(state='PROGRESS', meta={'progress': 60, 'status': 'Storing generated speech'})
             job.update_progress(60, 'Storing generated audio file')
             
             # Generate unique filename
-            webm_filename = f"speech/{job_id}/generated_speech.webm"
-            webm_result = storage_service.upload_file(
-                file_data=speech_webm_data,
-                object_name=webm_filename,
-                content_type='audio/webm'
+            audio_filename = f"speech/{job_id}/generated_speech.wav"
+            
+            # Convert bytes to BytesIO for MinIO compatibility
+            audio_file_obj = BytesIO(speech_audio_data)
+            
+            audio_result = storage_service.upload_file(
+                file_data=audio_file_obj,
+                object_name=audio_filename,
+                content_type='audio/wav'
             )
             
-            if not webm_result.get('success'):
-                raise RuntimeError(f"Failed to upload WebM file: {webm_result.get('error')}")
+            if not audio_result.get('success'):
+                raise RuntimeError(f"Failed to upload audio file: {audio_result.get('error')}")
             
-            # Convert WebM to WAV for compatibility with video generation
-            self.update_state(state='PROGRESS', meta={'progress': 70, 'status': 'Converting audio format'})
-            job.update_progress(70, 'Converting audio to WAV format')
+            # IndexTTS typically outputs WAV format directly
+            self.update_state(state='PROGRESS', meta={'progress': 70, 'status': 'Processing audio format'})
+            job.update_progress(70, 'Processing audio format')
             
-            wav_data = convert_webm_to_wav(speech_webm_data)
-            wav_filename = f"speech/{job_id}/generated_speech.wav"
+            # The speech_audio_data from IndexTTS is already in WAV format
+            wav_data = speech_audio_data
+            wav_filename = f"speech/{job_id}/generated_speech_wav.wav"
+            
+            # Convert bytes to BytesIO for MinIO compatibility
+            wav_file_obj = BytesIO(wav_data)
+            
             wav_result = storage_service.upload_file(
-                file_data=wav_data,
+                file_data=wav_file_obj,
                 object_name=wav_filename,
                 content_type='audio/wav'
             )
@@ -113,8 +121,8 @@ def generate_speech(self, job_id: int, text: str, voice_asset_id: int):
             
             # Create result data
             result = {
-                'webm_file_path': webm_filename,
-                'webm_storage_result': webm_result,
+                'audio_file_path': audio_filename,
+                'audio_storage_result': audio_result,
                 'wav_file_path': wav_filename,
                 'wav_storage_result': wav_result,
                 'text_length': len(text),
@@ -126,7 +134,7 @@ def generate_speech(self, job_id: int, text: str, voice_asset_id: int):
             # Update job with final progress
             job.update_progress(100, 'Speech generation completed successfully')
             
-            logger.info(f"Successfully generated speech for job {job_id}: {len(speech_webm_data)} bytes WebM, {len(wav_data)} bytes WAV")
+            logger.info(f"Successfully generated speech for job {job_id}: {len(speech_audio_data)} bytes audio, {len(wav_data)} bytes WAV")
             return result
             
         except Exception as exc:
@@ -314,17 +322,17 @@ def convert_audio_format(self, input_path: str, output_path: str, target_format:
 @celery.task(bind=True)
 def validate_tts_service(self):
     """
-    Validate that the TTS service (Zyphra) is accessible and working.
+    Validate that the TTS service (IndexTTS) is accessible and working.
     
     Returns:
         dict: Validation results
     """
     try:
-        self.update_state(state='PROGRESS', meta={'progress': 20, 'status': 'Checking Zyphra configuration'})
+        self.update_state(state='PROGRESS', meta={'progress': 20, 'status': 'Checking IndexTTS configuration'})
         
         # Initialize client and check configuration
-        zyphra_client = ZyphraClient()
-        config_result = zyphra_client.validate_configuration()
+        indextts_client = IndexTTSClient()
+        config_result = indextts_client.validate_configuration()
         
         if not config_result['valid']:
             return {
@@ -336,12 +344,12 @@ def validate_tts_service(self):
         self.update_state(state='PROGRESS', meta={'progress': 60, 'status': 'Testing API connectivity'})
         
         # Test API connectivity
-        health_result = zyphra_client.health_check()
+        health_result = indextts_client.health_check()
         
         result = {
             'status': 'success' if health_result['status'] == 'healthy' else 'failed',
             'api_status': health_result['status'],
-            'api_url': 'Zyphra API (official client)',  # No longer expose internal URL
+            'api_url': f"IndexTTS Space: {indextts_client.space_name}",
             'configuration': config_result,
             'health_check': health_result
         }
@@ -357,7 +365,7 @@ def validate_tts_service(self):
         return {
             'status': 'error',
             'api_status': 'error',
-            'api_url': 'Zyphra API (official client)',
+            'api_url': 'IndexTTS API',
             'error': error_msg,
             'exception_type': type(exc).__name__
         }

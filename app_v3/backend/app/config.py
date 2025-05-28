@@ -61,6 +61,8 @@ class Config:
     ZYPHRA_API_KEY = os.environ.get('ZYPHRA_API_KEY')
     ZYPHRA_API_URL = os.environ.get('ZYPHRA_API_URL', 'http://api.zyphra.com/v1')
     HF_API_TOKEN = os.environ.get('HF_API_TOKEN')
+    HF_TOKEN = os.environ.get('HF_TOKEN', os.environ.get('HF_API_TOKEN'))  # Support both naming conventions
+    INDEXTTS_SPACE_NAME = os.environ.get('INDEXTTS_SPACE_NAME', 'hants/IndexTTS')
     OLLAMA_API_URL = os.environ.get('OLLAMA_API_URL', 'http://localhost:11434')
     
     # GPU/Processing settings

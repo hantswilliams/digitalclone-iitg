@@ -2,6 +2,6 @@
 Text-to-Speech services package.
 """
 
-from .zyphra_client import ZyphraClient
+from .indextts_client import IndexTTSClient
 
-__all__ = ['ZyphraClient']
+__all__ = ['IndexTTSClient']

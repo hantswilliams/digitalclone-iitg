@@ -6,7 +6,7 @@ const JobStatusFilter = ({ activeFilter, onFilterChange }) => {
   const filters = [
     { value: '', label: 'All Jobs' },
     { value: 'pending', label: 'Pending' },
-    { value: 'running', label: 'Running' },
+    { value: 'processing', label: 'Processing' },
     { value: 'completed', label: 'Completed' },
     { value: 'failed', label: 'Failed' },
     { value: 'cancelled', label: 'Cancelled' }
@@ -68,7 +68,7 @@ const ProgressBar = ({ progress, status }) => {
         return 'bg-red-500';
       case 'cancelled':
         return 'bg-gray-500';
-      case 'running':
+      case 'processing':
         return 'bg-blue-500';
       default:
         return 'bg-gray-300';
@@ -89,7 +89,7 @@ const JobCard = ({ job, onCancel, onView, onDelete }) => {
   const getStatusBadge = (status) => {
     const statusConfig = {
       pending: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Pending', icon: '⏳' },
-      running: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Running', icon: '▶️' },
+      processing: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Processing', icon: '▶️' },
       completed: { bg: 'bg-green-100', text: 'text-green-800', label: 'Completed', icon: '✅' },
       failed: { bg: 'bg-red-100', text: 'text-red-800', label: 'Failed', icon: '❌' },
       cancelled: { bg: 'bg-gray-100', text: 'text-gray-800', label: 'Cancelled', icon: '⏹️' }
@@ -192,7 +192,7 @@ const JobCard = ({ job, onCancel, onView, onDelete }) => {
           View Details
         </button>
         
-        {(job.status === 'pending' || job.status === 'running') && (
+        {(job.status === 'pending' || job.status === 'processing') && (
           <button
             onClick={() => onCancel(job.id)}
             className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
@@ -317,7 +317,7 @@ const JobsPage = () => {
       loadJobs();
       
       if (err.response?.status === 400) {
-        setError(err.response.data.message || 'Cannot delete running job. Cancel it first.');
+        setError(err.response.data.message || 'Cannot delete processing job. Cancel it first.');
       } else if (err.response?.status === 404) {
         setError('Job not found');
       } else {

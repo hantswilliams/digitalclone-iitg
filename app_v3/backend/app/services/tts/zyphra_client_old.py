@@ -1,11 +1,8 @@
 """
 Zyphra TTS API client for voice cloning and text-to-speech generation.
 
-This module provides a client for the Zyphra TTS API, supporting:
-- Voice cloning from reference audio samples
-- Text-to-speech generation with cloned voices
-- WebM audio output format
-- Base64 audio encoding for API requests
+This module provides a client for the Zyphra TTS API using the official Zyphra package.
+Supports voice cloning from reference audio samples and text-to-speech generation.
 """
 
 import os
@@ -33,39 +30,31 @@ class ZyphraAPIError(Exception):
 
 class ZyphraClient:
     """
-    Client for Zyphra TTS API integration.
+    Client for Zyphra TTS API integration using the official Zyphra package.
     
     Handles voice cloning and text-to-speech generation using the Zyphra API.
     Supports base64 audio encoding and WebM output format.
     """
     
-    def __init__(self, api_key: Optional[str] = None, api_url: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None):
         """
         Initialize the Zyphra client.
         
         Args:
             api_key: Zyphra API key. If not provided, reads from config.
-            api_url: Zyphra API base URL. If not provided, reads from config.
         """
+        if Zyphra is None:
+            raise ImportError("Zyphra package is required. Install with: pip install zyphra")
+        
         self.api_key = api_key or self._get_config_value('ZYPHRA_API_KEY')
-        self.api_url = api_url or self._get_config_value('ZYPHRA_API_URL', 'http://api.zyphra.com/v1')
         
         if not self.api_key:
             raise ValueError("Zyphra API key is required. Set ZYPHRA_API_KEY environment variable.")
         
-        self.session = requests.Session()
-        self.session.headers.update({
-            'X-API-Key': self.api_key,
-            'Content-Type': 'application/json'
-        })
+        # Initialize the official Zyphra client
+        self.client = Zyphra(api_key=self.api_key)
         
-        # Debug session configuration
-        logger.info(f"Session headers: {dict(self.session.headers)}")
-        logger.info(f"Session adapters: {list(self.session.adapters.keys())}")
-        
-        logger.info(f"Initialized Zyphra client with API URL: {self.api_url}")
-        logger.info(f"API URL from config: {self._get_config_value('ZYPHRA_API_URL', 'http://api.zyphra.com/v1')}")
-        logger.info(f"API URL from env: {os.environ.get('ZYPHRA_API_URL', 'NOT_SET')}")
+        logger.info(f"Initialized Zyphra client with official package")
     
     def _get_config_value(self, key: str, default: Optional[str] = None) -> Optional[str]:
         """Get configuration value from Flask config or environment."""
@@ -118,13 +107,13 @@ class ZyphraClient:
         timeout: int = 60
     ) -> bytes:
         """
-        Generate speech using voice cloning.
+        Generate speech using voice cloning with the official Zyphra client.
         
         Args:
             text: Text to convert to speech.
             speaker_audio: Reference audio for voice cloning (bytes, file path, or BytesIO).
             speaking_rate: Speaking rate (default: 15.0).
-            timeout: Request timeout in seconds.
+            timeout: Request timeout in seconds (ignored for official client).
             
         Returns:
             Generated speech audio as bytes (WebM format).
@@ -136,47 +125,44 @@ class ZyphraClient:
             # Encode reference audio to base64
             speaker_audio_b64 = self._encode_audio_to_base64(speaker_audio)
             
-            # Prepare API request payload
-            payload = {
-                'text': text,
-                'speaking_rate': speaking_rate,
-                'speaker_audio': speaker_audio_b64
-            }
+            logger.info(f"Generating speech with Zyphra API - text length: {len(text)}, speaking_rate: {speaking_rate}")
+            logger.debug(f"Speaker audio encoded to {len(speaker_audio_b64)} characters")
             
-            # Make API request
-            url = f"{self.api_url}/audio/text-to-speech"
-            logger.info(f"Making TTS request to {url}")
-            logger.info(f"URL breakdown - api_url: '{self.api_url}', final_url: '{url}'")
-            logger.info(f"URL scheme check - starts with http://: {url.startswith('http://')}, starts with https://: {url.startswith('https://')}")
-            logger.debug(f"Request payload: text length={len(text)}, speaking_rate={speaking_rate}")
+            # Use the official Zyphra client to generate speech
+            audio_data = self.client.audio.speech.create(
+                text=text,
+                speaker_audio=speaker_audio_b64,
+                speaking_rate=speaking_rate
+            )
             
-            response = self.session.post(url, json=payload, timeout=timeout)
-            
-            if response.status_code == 200:
-                audio_data = response.content
+            # The official client should return bytes directly
+            if isinstance(audio_data, bytes):
                 logger.info(f"Successfully generated speech ({len(audio_data)} bytes)")
                 return audio_data
             else:
-                # Try to parse error response
-                try:
-                    error_data = response.json()
-                except:
-                    error_data = {'error': response.text}
+                # If it returns something else, try to convert it
+                logger.warning(f"Unexpected audio data type: {type(audio_data)}")
+                if hasattr(audio_data, 'content'):
+                    return audio_data.content
+                elif hasattr(audio_data, 'data'):
+                    return audio_data.data
+                else:
+                    raise ZyphraAPIError(f"Unexpected audio data format: {type(audio_data)}")
                 
-                raise ZyphraAPIError(
-                    f"TTS generation failed: {error_data.get('error', 'Unknown error')}",
-                    status_code=response.status_code,
-                    response_data=error_data
-                )
-                
-        except requests.exceptions.Timeout:
-            raise ZyphraAPIError(f"Request timed out after {timeout} seconds")
-        except requests.exceptions.RequestException as e:
-            raise ZyphraAPIError(f"Network error: {str(e)}")
         except Exception as e:
             if isinstance(e, ZyphraAPIError):
                 raise
-            raise ZyphraAPIError(f"Unexpected error during TTS generation: {str(e)}")
+            
+            # Handle different types of exceptions from the official client
+            error_msg = str(e)
+            if 'API key' in error_msg.lower():
+                raise ZyphraAPIError(f"Authentication error: {error_msg}")
+            elif 'rate limit' in error_msg.lower():
+                raise ZyphraAPIError(f"Rate limit exceeded: {error_msg}")
+            elif 'network' in error_msg.lower() or 'connection' in error_msg.lower():
+                raise ZyphraAPIError(f"Network error: {error_msg}")
+            else:
+                raise ZyphraAPIError(f"TTS generation failed: {error_msg}")
     
     def health_check(self) -> Dict[str, Any]:
         """
@@ -186,38 +172,39 @@ class ZyphraClient:
             Dictionary with health check status and details.
         """
         try:
-            # Since we don't know if Zyphra has a health endpoint,
-            # we'll do a basic connectivity check to the base URL
-            url = self.api_url.rstrip('/v1')  # Remove /v1 to get base domain
-            response = self.session.get(url, timeout=10)
+            # Try a simple API call to check connectivity
+            # We'll use a minimal text to avoid consuming too many credits
+            test_audio_b64 = base64.b64encode(b"test").decode('utf-8')
             
-            # Any response (even 404) means the server is reachable
-            if response.status_code in [200, 404, 403, 405]:
+            # This might fail but will tell us if the API is reachable
+            self.client.audio.speech.create(
+                text="test",
+                speaker_audio=test_audio_b64,
+                speaking_rate=15.0
+            )
+            
+            return {
+                'status': 'healthy',
+                'note': 'API is accessible and responding'
+            }
+            
+        except Exception as e:
+            error_msg = str(e)
+            if 'authentication' in error_msg.lower() or 'api key' in error_msg.lower():
                 return {
-                    'status': 'healthy',
-                    'api_url': self.api_url,
-                    'response_time_ms': response.elapsed.total_seconds() * 1000,
-                    'note': 'Basic connectivity confirmed'
+                    'status': 'authentication_error',
+                    'error': f"Authentication failed: {error_msg}"
+                }
+            elif 'rate limit' in error_msg.lower():
+                return {
+                    'status': 'rate_limited',
+                    'error': f"Rate limit exceeded: {error_msg}"
                 }
             else:
                 return {
                     'status': 'unhealthy',
-                    'api_url': self.api_url,
-                    'error': f"HTTP {response.status_code}: {response.text[:200]}"
+                    'error': f"API error: {error_msg}"
                 }
-                
-        except requests.exceptions.RequestException as e:
-            return {
-                'status': 'unhealthy',
-                'api_url': self.api_url,
-                'error': f"Connection error: {str(e)}"
-            }
-        except Exception as e:
-            return {
-                'status': 'error',
-                'api_url': self.api_url,
-                'error': f"Unexpected error: {str(e)}"
-            }
     
     def validate_configuration(self) -> Dict[str, Any]:
         """
@@ -233,96 +220,15 @@ class ZyphraClient:
         elif len(self.api_key) < 10:
             issues.append("API key appears to be too short")
         
-        if not self.api_url:
-            issues.append("Missing API URL")
-        elif not self.api_url.startswith(('http://', 'https://')):
-            issues.append("API URL must start with http:// or https://")
+        if Zyphra is None:
+            issues.append("Zyphra package not installed")
         
         return {
             'valid': len(issues) == 0,
-            'api_url': self.api_url,
             'has_api_key': bool(self.api_key),
+            'has_zyphra_package': Zyphra is not None,
             'issues': issues
         }
-    
-    def debug_url_test(self) -> Dict[str, Any]:
-        """
-        Debug method to test URL handling without making actual API calls.
-        """
-        try:
-            # Test URL construction
-            test_url = f"{self.api_url}/audio/text-to-speech"
-            logger.info(f"Debug: Constructed URL: {test_url}")
-            
-            # Test with a simple GET request to see what happens
-            import urllib.parse
-            parsed = urllib.parse.urlparse(test_url)
-            logger.info(f"Debug: Parsed URL - scheme: {parsed.scheme}, netloc: {parsed.netloc}, path: {parsed.path}")
-            
-            # Try a basic request to the root domain first
-            root_url = f"{parsed.scheme}://{parsed.netloc}"
-            logger.info(f"Debug: Testing root URL: {root_url}")
-            
-            response = self.session.get(root_url, timeout=5)
-            logger.info(f"Debug: Root URL response status: {response.status_code}")
-            logger.info(f"Debug: Root URL response headers: {dict(response.headers)}")
-            
-            return {
-                'status': 'success',
-                'test_url': test_url,
-                'parsed_scheme': parsed.scheme,
-                'parsed_netloc': parsed.netloc,
-                'root_response_status': response.status_code
-            }
-            
-        except Exception as e:
-            logger.error(f"Debug URL test failed: {str(e)}")
-            return {
-                'status': 'error',
-                'error': str(e),
-                'test_url': test_url if 'test_url' in locals() else 'N/A'
-            }
-    
-    def test_redirect_behavior(self) -> Dict[str, Any]:
-        """
-        Test if the API server redirects HTTP to HTTPS.
-        """
-        try:
-            # Create a session that doesn't follow redirects
-            test_session = requests.Session()
-            test_session.headers.update(self.session.headers)
-            
-            test_url = f"{self.api_url}/audio/text-to-speech"
-            logger.info(f"Testing redirect behavior for: {test_url}")
-            
-            # Make request without following redirects
-            response = test_session.post(test_url, json={'test': 'data'}, allow_redirects=False, timeout=10)
-            
-            logger.info(f"Response status: {response.status_code}")
-            logger.info(f"Response headers: {dict(response.headers)}")
-            
-            if response.status_code in [301, 302, 307, 308]:
-                redirect_url = response.headers.get('Location', 'No Location header')
-                logger.info(f"Redirect detected! Redirecting to: {redirect_url}")
-                return {
-                    'status': 'redirect_detected',
-                    'status_code': response.status_code,
-                    'redirect_url': redirect_url,
-                    'original_url': test_url
-                }
-            else:
-                return {
-                    'status': 'no_redirect',
-                    'status_code': response.status_code,
-                    'original_url': test_url
-                }
-                
-        except Exception as e:
-            logger.error(f"Redirect test failed: {str(e)}")
-            return {
-                'status': 'error',
-                'error': str(e)
-            }
 
 
 # Convenience function for quick access
