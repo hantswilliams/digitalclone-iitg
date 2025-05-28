@@ -108,7 +108,6 @@ models/
 *.mov
 *.webm
 *.mp3
-*.wav
 *.m4a
 
 # Jupyter Notebooks
