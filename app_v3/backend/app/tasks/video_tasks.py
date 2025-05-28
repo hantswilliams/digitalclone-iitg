@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from celery import current_task
 from ..extensions import celery, db
-from ..models import Job, JobStep, Asset
+from ..models import Job, JobStep, Asset, JobStatus
 from ..services.video import KDTalkerClient, VideoGenerationConfig
 from ..services.storage import storage_service
 
@@ -40,7 +40,7 @@ def generate_video(self, job_id: int, portrait_asset_id: int, audio_asset_id: in
                 raise ValueError(f"Job {job_id} not found")
             
             # Update job status
-            job.status = 'running'
+            job.status = JobStatus.PROCESSING
             job.progress = 5
             job.status_message = 'Initializing video generation'
             db.session.commit()
@@ -199,7 +199,7 @@ def generate_video(self, job_id: int, portrait_asset_id: int, audio_asset_id: in
         # Update job in database
         with celery.app.app_context():
             job = Job.query.get(job_id)
-            job.status = 'completed'
+            job.status = JobStatus.COMPLETED
             job.progress = 100
             job.status_message = 'Video generation completed successfully'
             job.result_data = result
@@ -216,7 +216,7 @@ def generate_video(self, job_id: int, portrait_asset_id: int, audio_asset_id: in
             with celery.app.app_context():
                 job = Job.query.get(job_id)
                 if job:
-                    job.status = 'failed'
+                    job.status = JobStatus.FAILED
                     job.status_message = str(exc)
                     job.progress = 0
                     db.session.commit()

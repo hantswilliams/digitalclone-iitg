@@ -43,6 +43,12 @@ def generate_speech(self, job_id: int, text: str, voice_asset_id: int):
             if not job:
                 raise ValueError(f"Job {job_id} not found")
             
+            # Update job status to processing when task starts
+            job.status = JobStatus.PROCESSING
+            db.session.commit()
+            
+            logger.info(f"Started TTS generation for job {job_id}, updated status to PROCESSING")
+            
             # Update task progress
             self.update_state(state='PROGRESS', meta={'progress': 5, 'status': 'Loading voice asset'})
             job.update_progress(5, 'Loading voice asset for cloning')
@@ -156,8 +162,10 @@ def generate_speech(self, job_id: int, text: str, voice_asset_id: int):
                 'generated_asset_id': asset.id  # Include the asset ID in the result
             }
             
-            # Update job with final progress
+            # Update job with final progress and mark as completed
             job.update_progress(100, 'Speech generation completed successfully')
+            job.status = JobStatus.COMPLETED
+            db.session.commit()
             
             logger.info(f"Successfully generated speech for job {job_id}: {len(speech_audio_data)} bytes audio, {len(wav_data)} bytes WAV")
             return result
@@ -168,7 +176,7 @@ def generate_speech(self, job_id: int, text: str, voice_asset_id: int):
             
             if job:
                 job.update_progress(0, error_msg)
-                job.status = 'failed'
+                job.status = JobStatus.FAILED
                 job.error_message = error_msg
                 db.session.commit()
             

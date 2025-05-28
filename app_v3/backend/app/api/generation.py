@@ -239,11 +239,11 @@ def text_to_speech():
 @jwt_required()
 def tts_service_status():
     """
-    Check the status of the TTS service (Zyphra).
+    Check the status of the TTS service (IndexTTS).
     
     Returns:
     {
-        "service": "zyphra_tts",
+        "service": "indextts",
         "status": "healthy|unhealthy|error",
         "details": {...}
     }
@@ -264,14 +264,14 @@ def tts_service_status():
             }
         
         return jsonify({
-            'service': 'zyphra_tts',
+            'service': 'indextts',
             'status': result['status'],
             'details': result
         }), 200
         
     except Exception as e:
         return jsonify({
-            'service': 'zyphra_tts',
+            'service': 'indextts',
             'status': 'error',
             'details': {
                 'error': f"Failed to queue validation task: {str(e)}",

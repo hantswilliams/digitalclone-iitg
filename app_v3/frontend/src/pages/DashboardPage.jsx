@@ -15,7 +15,7 @@ const DashboardPage = () => {
   const [recentJobs, setRecentJobs] = useState([]);
   const [systemStatus, setSystemStatus] = useState({
     kdTalker: false,
-    zyphraTTS: false,
+    indexTTS: false,
     celeryWorker: false
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -69,7 +69,7 @@ const DashboardPage = () => {
                          result?.status === 'connected' ||
                          result?.redis_status === 'connected' ||
                          result?.service === 'kdtalker' ||
-                         result?.service === 'zyphra_tts' ||
+                         result?.service === 'indextts' ||
                          result?.available === true;
         
         return isHealthy;
@@ -94,13 +94,13 @@ const DashboardPage = () => {
       // Check all services in parallel
       const [videoStatus, ttsStatus, workerStatus] = await Promise.all([
         checkService('Video (KdTalker)', () => generationService.getVideoStatus()),
-        checkService('TTS (Zyphra)', () => generationService.getTTSStatus()),
+        checkService('TTS (IndexTTS)', () => generationService.getTTSStatus()),
         checkService('Worker Queue', () => generationService.getWorkerStatus())
       ]);
       
       const newStatus = {
         kdTalker: videoStatus,
-        zyphraTTS: ttsStatus,
+        indexTTS: ttsStatus,
         celeryWorker: workerStatus
       };
       
@@ -112,7 +112,7 @@ const DashboardPage = () => {
       // Set all services as unavailable on error
       setSystemStatus({
         kdTalker: false,
-        zyphraTTS: false,
+        indexTTS: false,
         celeryWorker: false
       });
     }
@@ -318,11 +318,11 @@ const DashboardPage = () => {
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">Zyphra TTS Service</span>
+              <span className="text-sm font-medium text-gray-700">IndexTTS Service</span>
               <div className="flex items-center">
-                <div className={`w-2 h-2 rounded-full mr-2 ${systemStatus.zyphraTTS ? 'bg-green-400' : 'bg-red-400'}`}></div>
-                <span className={`text-sm ${systemStatus.zyphraTTS ? 'text-green-600' : 'text-red-600'}`}>
-                  {systemStatus.zyphraTTS ? 'Online' : 'Offline'}
+                <div className={`w-2 h-2 rounded-full mr-2 ${systemStatus.indexTTS ? 'bg-green-400' : 'bg-red-400'}`}></div>
+                <span className={`text-sm ${systemStatus.indexTTS ? 'text-green-600' : 'text-red-600'}`}>
+                  {systemStatus.indexTTS ? 'Online' : 'Offline'}
                 </span>
               </div>
             </div>
