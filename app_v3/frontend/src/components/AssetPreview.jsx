@@ -170,6 +170,69 @@ const AssetPreview = ({ asset, onClose }) => {
           </div>
         );
 
+      case 'generated_audio':
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <div className="w-32 h-32 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <SpeakerWaveIcon className="w-16 h-16 text-green-600" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {asset.filename}
+              </h3>
+              <p className="text-sm text-gray-500">Generated TTS Audio</p>
+            </div>
+
+            <audio
+              ref={audioRef}
+              src={asset.download_url}
+              onTimeUpdate={handleTimeUpdate}
+              onLoadedMetadata={handleLoadedMetadata}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+              onEnded={() => setIsPlaying(false)}
+              onError={() => setError('Failed to load audio file')}
+              preload="metadata"
+            />
+
+            <div className="space-y-4">
+              {/* Play/Pause Button */}
+              <div className="flex justify-center">
+                <button
+                  onClick={handlePlayPause}
+                  className="w-16 h-16 bg-green-600 hover:bg-green-700 rounded-full flex items-center justify-center text-white transition-colors"
+                  disabled={!duration}
+                >
+                  {isPlaying ? (
+                    <PauseIcon className="w-8 h-8" />
+                  ) : (
+                    <PlayIcon className="w-8 h-8 ml-1" />
+                  )}
+                </button>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="space-y-2">
+                <div
+                  className="w-full h-2 bg-gray-200 rounded-full cursor-pointer"
+                  onClick={handleSeek}
+                >
+                  <div
+                    className="h-full bg-green-600 rounded-full transition-all duration-100"
+                    style={{
+                      width: duration ? `${(currentTime / duration) * 100}%` : '0%'
+                    }}
+                  />
+                </div>
+                <div className="flex justify-between text-sm text-gray-500">
+                  <span>{formatTime(currentTime)}</span>
+                  <span>{formatTime(duration)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
       case 'script':
         return (
           <div className="space-y-4">

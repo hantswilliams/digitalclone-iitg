@@ -117,7 +117,31 @@ def generate_speech(self, job_id: int, text: str, voice_asset_id: int):
             
             # Calculate audio metadata
             self.update_state(state='PROGRESS', meta={'progress': 90, 'status': 'Finalizing results'})
-            job.update_progress(90, 'Processing audio metadata')
+            job.update_progress(90, 'Creating asset record')
+            
+            # Create Asset record for the generated audio
+            from ..models.asset import AssetStatus
+            
+            logger.info(f"Creating Asset record for job {job_id}, user {job.user_id}")
+            
+            asset = Asset(
+                filename=f"generated_speech_{job_id}.wav",
+                original_filename=f"generated_speech_{job_id}.wav",
+                file_size=len(wav_data),
+                mime_type='audio/wav',
+                file_extension='.wav',
+                asset_type=AssetType.GENERATED_AUDIO,
+                status=AssetStatus.READY,
+                storage_path=wav_filename,
+                storage_bucket=current_app.config.get('MINIO_BUCKET_NAME', 'voice-clone-assets'),
+                user_id=job.user_id,
+                description=f"Generated speech from text: {text[:100]}{'...' if len(text) > 100 else ''}"
+            )
+            
+            db.session.add(asset)
+            db.session.commit()
+            
+            logger.info(f"Successfully created Asset record with ID {asset.id} for TTS output")
             
             # Create result data
             result = {
@@ -128,7 +152,8 @@ def generate_speech(self, job_id: int, text: str, voice_asset_id: int):
                 'text_length': len(text),
                 'voice_asset_id': voice_asset_id,
                 'duration_estimated': len(text) * 0.05,  # Rough estimate: 50ms per character
-                'status': 'completed'
+                'status': 'completed',
+                'generated_asset_id': asset.id  # Include the asset ID in the result
             }
             
             # Update job with final progress
