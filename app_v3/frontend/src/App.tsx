@@ -9,6 +9,7 @@ import DashboardPage from './pages/DashboardPage';
 import AssetsPage from './pages/AssetsPage';
 import JobsPage from './pages/JobsPage';
 import CreateVideoPage from './pages/CreateVideoPage';
+import CreateAudioPage from './pages/CreateAudioPage';
 
 function App() {
 
@@ -51,6 +52,14 @@ function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <AssetsPage openUploadModal={true} />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/create-audio" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <CreateAudioPage />
                 </AppLayout>
               </ProtectedRoute>
             } />

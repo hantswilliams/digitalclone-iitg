@@ -13,8 +13,7 @@ from io import BytesIO
 from flask import current_app
 
 try:
-    from zyphra import ZyphraClient
-    Zyphra = ZyphraClient
+    from zyphra import Zyphra
 except ImportError:
     Zyphra = None
 

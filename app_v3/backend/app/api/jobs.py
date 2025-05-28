@@ -174,6 +174,65 @@ def create_job():
     
     db.session.commit()
     
+    # Dispatch appropriate Celery task based on job type
+    task_result = None
+    if job.job_type == JobType.TEXT_TO_SPEECH:
+        from ..tasks.tts_tasks import generate_speech
+        # For TTS, we need a voice_clone_id (asset ID) instead of voice_sample string
+        voice_asset_id = job.parameters.get('voice_asset_id')
+        if not voice_asset_id and data.get('asset_ids'):
+            # Use the first asset as the voice sample
+            voice_asset_id = data['asset_ids'][0]
+        
+        if voice_asset_id:
+            task_result = generate_speech.delay(
+                job.id,
+                job.parameters.get('text', ''),
+                voice_asset_id
+            )
+        else:
+            # No voice asset provided, mark job as failed
+            job.status = JobStatus.FAILED
+            job.progress_message = 'No voice sample provided'
+    elif job.job_type == JobType.VOICE_CLONE:
+        from ..tasks.voice_tasks import clone_voice_task
+        task_result = clone_voice_task.delay(
+            job.id,
+            job.parameters.get('voice_sample_path', ''),
+            user_id
+        )
+    elif job.job_type == JobType.VIDEO_GENERATION:
+        from ..tasks.video_tasks import generate_video
+        task_result = generate_video.delay(
+            job.id,
+            job.parameters.get('portrait_path', ''),
+            job.parameters.get('audio_path', ''),
+            user_id
+        )
+    elif job.job_type == JobType.SCRIPT_GENERATION:
+        from ..tasks.llm_tasks import generate_script
+        task_result = generate_script.delay(
+            job.id,
+            job.parameters.get('prompt', ''),
+            topic=job.parameters.get('topic', ''),
+            target_audience=job.parameters.get('target_audience', 'general'),
+            duration_minutes=job.parameters.get('duration_minutes', 5),
+            style=job.parameters.get('style', 'conversational'),
+            additional_context=job.parameters.get('additional_context', '')
+        )
+    elif job.job_type == JobType.FULL_PIPELINE:
+        from ..tasks.video_tasks import full_generation_pipeline
+        task_result = full_generation_pipeline.delay(
+            job.id,
+            job.parameters,
+            user_id
+        )
+    
+    # Update job with task ID if task was started
+    if task_result:
+        job.celery_task_id = task_result.id
+        db.session.commit()
+    
     # Return created job
     response_data = job.to_dict(include_details=True)
     return jsonify({'job': response_data}), 201
@@ -401,3 +460,93 @@ def get_job_status(job_id):
         'task_id': job.celery_task_id,
         'results': job.results
     }), 200
+
+
+@jobs_bp.route('/<int:job_id>', methods=['DELETE'])
+@jwt_required()
+@handle_errors
+def delete_job(job_id):
+    """Delete a job and all associated data"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.info(f"🗑️ DELETE request received for job_id: {job_id}")
+    
+    user_id = get_jwt_identity()
+    logger.info(f"👤 User ID from JWT: {user_id}")
+    
+    # Get job with ownership verification
+    logger.info(f"🔍 Looking up job {job_id} for user {user_id}")
+    job = Job.query.filter_by(id=job_id, user_id=user_id).first()
+    
+    if not job:
+        logger.warning(f"❌ Job {job_id} not found for user {user_id}")
+        return jsonify(error_schema.dump({
+            'message': 'Job not found'
+        })), 404
+    
+    logger.info(f"✅ Found job: {job.id}, status: {job.status}, celery_task_id: {job.celery_task_id}")
+    
+    # Check if job can be deleted (should not be processing)
+    if job.status == JobStatus.PROCESSING:
+        logger.warning(f"⚠️ Cannot delete processing job {job_id}")
+        return jsonify(error_schema.dump({
+            'message': 'Cannot delete a processing job. Cancel it first.'
+        })), 400
+    
+    logger.info(f"🚀 Passed running check, starting deletion process")
+    try:
+        logger.info(f"📋 Entered try block for job deletion")
+        
+        # If job has a Celery task and it's still pending, revoke it
+        if job.celery_task_id and job.status == JobStatus.PENDING:
+            logger.info(f"📋 Attempting to revoke Celery task: {job.celery_task_id}")
+            try:
+                from ..tasks import celery
+                celery.control.revoke(job.celery_task_id, terminate=True)
+                logger.info(f"✅ Celery task {job.celery_task_id} revoked successfully")
+            except ImportError as import_err:
+                logger.warning(f"⚠️ Could not import celery to revoke task {job.celery_task_id}: {import_err}")
+            except Exception as celery_error:
+                logger.warning(f"⚠️ Could not revoke celery task {job.celery_task_id}: {celery_error}")
+        
+        # Delete job steps first (due to foreign key constraints)
+        logger.info(f"🔗 Checking job steps for job {job_id}")
+        job_steps_count = JobStep.query.filter_by(job_id=job.id).count()
+        logger.info(f"📊 Found {job_steps_count} job steps to delete")
+        
+        if job_steps_count > 0:
+            deleted_steps = JobStep.query.filter_by(job_id=job.id).delete()
+            logger.info(f"🗑️ Deleted {deleted_steps} job steps")
+        
+        # Delete the job itself
+        logger.info(f"🗑️ Deleting job {job_id}")
+        db.session.delete(job)
+        
+        logger.info(f"💾 Committing transaction")
+        db.session.commit()
+        
+        logger.info(f"✅ Job {job_id} deleted successfully")
+        return jsonify(message_schema.dump({
+            'message': f'Job {job_id} deleted successfully'
+        })), 200
+        
+    except Exception as e:
+        logger.error(f"❌ Error deleting job {job_id}: {str(e)}")
+        logger.error(f"🔍 Error type: {type(e).__name__}")
+        logger.error(f"📋 Error details: {repr(e)}")
+        
+        # Add full traceback for debugging
+        import traceback
+        logger.error(f"📋 Full traceback: {traceback.format_exc()}")
+        
+        db.session.rollback()
+        logger.info(f"🔄 Database transaction rolled back")
+        
+        print(f"Error deleting job {job_id}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify(error_schema.dump({
+            'message': f'Failed to delete job: {str(e)}'
+        })), 500

@@ -74,4 +74,14 @@ export const assetService = {
 
     return response;
   },
+
+  // Upload asset file directly (simpler than presigned URL flow)
+  uploadAsset: async (formData) => {
+    const response = await api.post('/api/assets/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
 };

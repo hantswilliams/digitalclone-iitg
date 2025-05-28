@@ -9,7 +9,8 @@ from celery import current_task
 from flask import current_app
 
 from ..extensions import celery, db
-from ..models import Job, JobStep, Asset
+from ..models import Job, JobStep, Asset, JobStatus, JobType
+from ..models.asset import AssetType
 from ..services.tts import ZyphraClient
 from ..services.storage import storage_service
 
@@ -30,113 +31,119 @@ def generate_speech(self, job_id: int, text: str, voice_asset_id: int):
         dict: Speech generation results with audio file paths
     """
     job = None
-    try:
-        # Get job and update progress
-        job = Job.query.get(job_id)
-        if not job:
-            raise ValueError(f"Job {job_id} not found")
-        
-        # Update task progress
-        self.update_state(state='PROGRESS', meta={'progress': 5, 'status': 'Loading voice asset'})
-        job.update_progress(5, 'Loading voice asset for cloning')
-        
-        # Get the voice asset
-        voice_asset = Asset.query.get(voice_asset_id)
-        if not voice_asset:
-            raise ValueError(f"Voice asset {voice_asset_id} not found")
-        
-        if voice_asset.asset_type != 'voice_sample':
-            raise ValueError(f"Asset {voice_asset_id} is not a voice sample")
-        
-        # Download voice asset from MinIO
-        self.update_state(state='PROGRESS', meta={'progress': 10, 'status': 'Downloading reference voice'})
-        job.update_progress(10, 'Downloading reference voice from storage')
-        
-        voice_audio_data = storage_service.download_file(voice_asset.file_path)
-        
-        # Initialize Zyphra client
-        self.update_state(state='PROGRESS', meta={'progress': 20, 'status': 'Initializing TTS service'})
-        job.update_progress(20, 'Connecting to Zyphra TTS service')
-        
-        zyphra_client = ZyphraClient()
-        
-        # Generate speech using Zyphra
-        self.update_state(state='PROGRESS', meta={'progress': 30, 'status': 'Generating speech with voice clone'})
-        job.update_progress(30, 'Generating speech with cloned voice')
-        
-        speech_webm_data = zyphra_client.generate_speech(
-            text=text,
-            speaker_audio=voice_audio_data,
-            speaking_rate=15.0  # TODO: Make this configurable
-        )
-        
-        # Store the WebM audio in MinIO
-        self.update_state(state='PROGRESS', meta={'progress': 60, 'status': 'Storing generated speech'})
-        job.update_progress(60, 'Storing generated audio file')
-        
-        # Generate unique filename
-        webm_filename = f"speech/{job_id}/generated_speech.webm"
-        webm_result = storage_service.upload_file(
-            file_data=speech_webm_data,
-            object_name=webm_filename,
-            content_type='audio/webm'
-        )
-        
-        if not webm_result.get('success'):
-            raise RuntimeError(f"Failed to upload WebM file: {webm_result.get('error')}")
-        
-        # Convert WebM to WAV for compatibility with video generation
-        self.update_state(state='PROGRESS', meta={'progress': 70, 'status': 'Converting audio format'})
-        job.update_progress(70, 'Converting audio to WAV format')
-        
-        wav_data = convert_webm_to_wav(speech_webm_data)
-        wav_filename = f"speech/{job_id}/generated_speech.wav"
-        wav_result = storage_service.upload_file(
-            file_data=wav_data,
-            object_name=wav_filename,
-            content_type='audio/wav'
-        )
-        
-        if not wav_result.get('success'):
-            raise RuntimeError(f"Failed to upload WAV file: {wav_result.get('error')}")
-        
-        # Calculate audio metadata
-        self.update_state(state='PROGRESS', meta={'progress': 90, 'status': 'Finalizing results'})
-        job.update_progress(90, 'Processing audio metadata')
-        
-        # Create result data
-        result = {
-            'webm_file_path': webm_filename,
-            'webm_storage_result': webm_result,
-            'wav_file_path': wav_filename,
-            'wav_storage_result': wav_result,
-            'text_length': len(text),
-            'voice_asset_id': voice_asset_id,
-            'duration_estimated': len(text) * 0.05,  # Rough estimate: 50ms per character
-            'status': 'completed'
-        }
-        
-        # Update job with final progress
-        job.update_progress(100, 'Speech generation completed successfully')
-        
-        logger.info(f"Successfully generated speech for job {job_id}: {len(speech_webm_data)} bytes WebM, {len(wav_data)} bytes WAV")
-        return result
-        
-    except Exception as exc:
-        error_msg = f"Speech generation failed: {str(exc)}"
-        logger.error(f"Job {job_id} - {error_msg}")
-        
-        if job:
-            job.update_progress(0, error_msg)
-            job.status = 'failed'
-            job.error_message = error_msg
-            db.session.commit()
-        
-        self.update_state(
-            state='FAILURE',
-            meta={'error': error_msg, 'progress': 0}
-        )
-        raise exc
+    
+    # Get Flask app instance for context
+    from ..extensions import celery
+    app = celery.flask_app
+    
+    with app.app_context():
+        try:
+            # Get job and update progress
+            job = Job.query.get(job_id)
+            if not job:
+                raise ValueError(f"Job {job_id} not found")
+            
+            # Update task progress
+            self.update_state(state='PROGRESS', meta={'progress': 5, 'status': 'Loading voice asset'})
+            job.update_progress(5, 'Loading voice asset for cloning')
+            
+            # Get the voice asset
+            voice_asset = Asset.query.get(voice_asset_id)
+            if not voice_asset:
+                raise ValueError(f"Voice asset {voice_asset_id} not found")
+            
+            if voice_asset.asset_type != AssetType.VOICE_SAMPLE:
+                raise ValueError(f"Asset {voice_asset_id} is not a voice sample")
+            
+            # Download voice asset from MinIO
+            self.update_state(state='PROGRESS', meta={'progress': 10, 'status': 'Downloading reference voice'})
+            job.update_progress(10, 'Downloading reference voice from storage')
+            
+            voice_audio_data = storage_service.download_file(voice_asset.storage_path)
+            
+            # Initialize Zyphra client
+            self.update_state(state='PROGRESS', meta={'progress': 20, 'status': 'Initializing TTS service'})
+            job.update_progress(20, 'Connecting to Zyphra TTS service')
+            
+            zyphra_client = ZyphraClient()
+            
+            # Generate speech using Zyphra
+            self.update_state(state='PROGRESS', meta={'progress': 30, 'status': 'Generating speech with voice clone'})
+            job.update_progress(30, 'Generating speech with cloned voice')
+            
+            speech_webm_data = zyphra_client.generate_speech(
+                text=text,
+                speaker_audio=voice_audio_data,
+                speaking_rate=15.0  # TODO: Make this configurable
+            )
+            
+            # Store the WebM audio in MinIO
+            self.update_state(state='PROGRESS', meta={'progress': 60, 'status': 'Storing generated speech'})
+            job.update_progress(60, 'Storing generated audio file')
+            
+            # Generate unique filename
+            webm_filename = f"speech/{job_id}/generated_speech.webm"
+            webm_result = storage_service.upload_file(
+                file_data=speech_webm_data,
+                object_name=webm_filename,
+                content_type='audio/webm'
+            )
+            
+            if not webm_result.get('success'):
+                raise RuntimeError(f"Failed to upload WebM file: {webm_result.get('error')}")
+            
+            # Convert WebM to WAV for compatibility with video generation
+            self.update_state(state='PROGRESS', meta={'progress': 70, 'status': 'Converting audio format'})
+            job.update_progress(70, 'Converting audio to WAV format')
+            
+            wav_data = convert_webm_to_wav(speech_webm_data)
+            wav_filename = f"speech/{job_id}/generated_speech.wav"
+            wav_result = storage_service.upload_file(
+                file_data=wav_data,
+                object_name=wav_filename,
+                content_type='audio/wav'
+            )
+            
+            if not wav_result.get('success'):
+                raise RuntimeError(f"Failed to upload WAV file: {wav_result.get('error')}")
+            
+            # Calculate audio metadata
+            self.update_state(state='PROGRESS', meta={'progress': 90, 'status': 'Finalizing results'})
+            job.update_progress(90, 'Processing audio metadata')
+            
+            # Create result data
+            result = {
+                'webm_file_path': webm_filename,
+                'webm_storage_result': webm_result,
+                'wav_file_path': wav_filename,
+                'wav_storage_result': wav_result,
+                'text_length': len(text),
+                'voice_asset_id': voice_asset_id,
+                'duration_estimated': len(text) * 0.05,  # Rough estimate: 50ms per character
+                'status': 'completed'
+            }
+            
+            # Update job with final progress
+            job.update_progress(100, 'Speech generation completed successfully')
+            
+            logger.info(f"Successfully generated speech for job {job_id}: {len(speech_webm_data)} bytes WebM, {len(wav_data)} bytes WAV")
+            return result
+            
+        except Exception as exc:
+            error_msg = f"Speech generation failed: {str(exc)}"
+            logger.error(f"Job {job_id} - {error_msg}")
+            
+            if job:
+                job.update_progress(0, error_msg)
+                job.status = 'failed'
+                job.error_message = error_msg
+                db.session.commit()
+            
+            self.update_state(
+                state='FAILURE',
+                meta={'error': error_msg, 'progress': 0}
+            )
+            raise exc
 
 
 def convert_webm_to_wav(webm_data: bytes) -> bytes:
@@ -202,9 +209,10 @@ def text_to_speech_task(self, text, voice_clone_id, user_id):
     """
     # Create a temporary job for legacy compatibility
     job = Job(
+        title=f'TTS Generation - {text[:30]}...' if len(text) > 30 else f'TTS Generation - {text}',
+        job_type=JobType.TEXT_TO_SPEECH,
         user_id=user_id,
-        job_type='text_to_speech',
-        status='pending',
+        status=JobStatus.PENDING,
         parameters={'text': text, 'voice_asset_id': voice_clone_id}
     )
     db.session.add(job)
@@ -333,7 +341,7 @@ def validate_tts_service(self):
         result = {
             'status': 'success' if health_result['status'] == 'healthy' else 'failed',
             'api_status': health_result['status'],
-            'api_url': health_result['api_url'],
+            'api_url': 'Zyphra API (official client)',  # No longer expose internal URL
             'configuration': config_result,
             'health_check': health_result
         }
@@ -349,7 +357,7 @@ def validate_tts_service(self):
         return {
             'status': 'error',
             'api_status': 'error',
-            'api_url': getattr(exc, 'api_url', 'unknown'),
+            'api_url': 'Zyphra API (official client)',
             'error': error_msg,
             'exception_type': type(exc).__name__
         }

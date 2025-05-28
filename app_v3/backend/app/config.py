@@ -59,7 +59,7 @@ class Config:
     
     # AI Service API Keys
     ZYPHRA_API_KEY = os.environ.get('ZYPHRA_API_KEY')
-    ZYPHRA_API_URL = os.environ.get('ZYPHRA_API_URL', 'https://api.zyphra.com/v1')
+    ZYPHRA_API_URL = os.environ.get('ZYPHRA_API_URL', 'http://api.zyphra.com/v1')
     HF_API_TOKEN = os.environ.get('HF_API_TOKEN')
     OLLAMA_API_URL = os.environ.get('OLLAMA_API_URL', 'http://localhost:11434')
     

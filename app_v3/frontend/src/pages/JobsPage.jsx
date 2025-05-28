@@ -220,6 +220,7 @@ const JobsPage = () => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [selectedJob, setSelectedJob] = useState(null);
@@ -251,11 +252,41 @@ const JobsPage = () => {
     }
 
     try {
-      await jobService.cancelJob(jobId);
-      loadJobs(); // Reload to get updated status
+      console.log('Cancelling job:', jobId);
+      
+      // Clear previous messages
+      setError(null);
+      setSuccess(null);
+      
+      // Optimistically update the job status in local state
+      setJobs(prevJobs => 
+        prevJobs.map(job => 
+          job.id === jobId 
+            ? { ...job, status: 'cancelled', updated_at: new Date().toISOString() }
+            : job
+        )
+      );
+
+      // Cancel the job on the server
+      const response = await jobService.cancelJob(jobId);
+      console.log('Job cancelled successfully:', response);
+      
+      // Show success message
+      setSuccess(`Job #${jobId} has been cancelled successfully`);
+      
+      // Reload to get the actual server state
+      await loadJobs();
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(null), 3000);
+      
     } catch (err) {
-      setError('Failed to cancel job');
       console.error('Error canceling job:', err);
+      setError('Failed to cancel job');
+      setSuccess(null);
+      
+      // Reload jobs to restore correct state on error
+      await loadJobs();
     }
   };
 
@@ -265,12 +296,33 @@ const JobsPage = () => {
     }
 
     try {
-      // Note: Delete endpoint would need to be implemented in backend
-      console.log('Delete job:', jobId);
-      setError('Job deletion not yet implemented');
+      console.log('🗑️ Deleting job:', jobId);
+      
+      // Optimistically update UI
+      setJobs(prevJobs => prevJobs.filter(job => job.id !== jobId));
+      
+      // Call backend delete endpoint
+      await jobService.deleteJob(jobId);
+      
+      console.log('✅ Job deleted successfully:', jobId);
+      setSuccess('Job deleted successfully');
+      
+      // Auto-dismiss success message after 3 seconds
+      setTimeout(() => setSuccess(null), 3000);
+      
     } catch (err) {
-      setError('Failed to delete job');
-      console.error('Error deleting job:', err);
+      console.error('❌ Error deleting job:', err);
+      
+      // Revert optimistic update by refreshing the job list
+      loadJobs();
+      
+      if (err.response?.status === 400) {
+        setError(err.response.data.message || 'Cannot delete running job. Cancel it first.');
+      } else if (err.response?.status === 404) {
+        setError('Job not found');
+      } else {
+        setError('Failed to delete job');
+      }
     }
   };
 
@@ -311,6 +363,12 @@ const JobsPage = () => {
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
           <p className="text-red-600">{error}</p>
+        </div>
+      )}
+
+      {success && (
+        <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-6">
+          <p className="text-green-600">{success}</p>
         </div>
       )}
 

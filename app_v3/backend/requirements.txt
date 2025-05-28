@@ -29,6 +29,7 @@ httpx==0.25.0
 gradio-client==0.6.1
 openai==0.28.1
 numpy==2.2.6
+zyphra
 
 # Audio/Video processing
 ffmpeg-python==0.2.0

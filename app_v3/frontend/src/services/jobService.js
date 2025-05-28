@@ -19,7 +19,7 @@ export const jobService = {
 
   // Get specific job details
   getJob: async (jobId) => {
-    const response = await api.get(`/api/jobs/${jobId}/`);
+    const response = await api.get(`/api/jobs/${jobId}`);
     return response.data;
   },
 
@@ -31,31 +31,37 @@ export const jobService = {
 
   // Update job metadata
   updateJob: async (jobId, updateData) => {
-    const response = await api.put(`/api/jobs/${jobId}/`, updateData);
+    const response = await api.put(`/api/jobs/${jobId}`, updateData);
     return response.data;
   },
 
   // Cancel job
   cancelJob: async (jobId) => {
-    const response = await api.post(`/api/jobs/${jobId}/cancel/`);
+    const response = await api.post(`/api/jobs/${jobId}/cancel`);
+    return response.data;
+  },
+
+  // Delete job
+  deleteJob: async (jobId) => {
+    const response = await api.delete(`/api/jobs/${jobId}`);
     return response.data;
   },
 
   // Get job steps
   getJobSteps: async (jobId) => {
-    const response = await api.get(`/api/jobs/${jobId}/steps/`);
+    const response = await api.get(`/api/jobs/${jobId}/steps`);
     return response.data;
   },
 
   // Create job step
   createJobStep: async (jobId, stepData) => {
-    const response = await api.post(`/api/jobs/${jobId}/steps/`, stepData);
+    const response = await api.post(`/api/jobs/${jobId}/steps`, stepData);
     return response.data;
   },
 
   // Poll job status (for real-time updates)
   pollJobStatus: async (jobId) => {
-    const response = await api.get(`/api/jobs/${jobId}/`);
+    const response = await api.get(`/api/jobs/${jobId}`);
     return response.data;
   },
 };
