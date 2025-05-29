@@ -12,6 +12,7 @@ import JobDetailsPage from './pages/JobDetailsPage';
 import CreateVideoPage from './pages/CreateVideoPage';
 import CreateAudioPage from './pages/CreateAudioPage';
 import RecordAudioPage from './pages/RecordAudioPage';
+import CapturePortraitPage from './pages/CapturePortraitPage';
 
 function App() {
 
@@ -78,6 +79,14 @@ function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <RecordAudioPage />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/capture-portrait" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <CapturePortraitPage />
                 </AppLayout>
               </ProtectedRoute>
             } />

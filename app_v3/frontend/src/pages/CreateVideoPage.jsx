@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { assetService } from '../services/assetService';
 import { jobService } from '../services/jobService';
-import { generationService } from '../services/generationService';
-import { ChevronLeftIcon, ChevronRightIcon, PlayIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ChevronLeftIcon, ChevronRightIcon, PlayIcon } from '@heroicons/react/24/outline';
 
 const WizardSteps = ({ currentStep, steps }) => {
   return (
@@ -170,9 +169,6 @@ const AssetSelector = ({ assetType, selectedAsset, onSelect, label, description 
 };
 
 const ScriptInput = ({ script, onScriptChange, selectedVoice }) => {
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [audioPreview, setAudioPreview] = useState(null);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [scriptAssets, setScriptAssets] = useState([]);
   const [loadingAssets, setLoadingAssets] = useState(false);
   const [inputMode, setInputMode] = useState('write'); // 'write' or 'select'
@@ -206,35 +202,6 @@ const ScriptInput = ({ script, onScriptChange, selectedVoice }) => {
     } catch (err) {
       console.error('Error loading script content:', err);
       alert('Failed to load script content');
-    }
-  };
-
-  const generatePreview = async () => {
-    if (!script.trim() || !selectedVoice) return;
-
-    try {
-      setIsGenerating(true);
-      const response = await generationService.generateTextToSpeech({
-        text: script,
-        voice_asset_id: selectedVoice.id
-      });
-
-      if (response.audio_url) {
-        setAudioPreview(response.audio_url);
-      }
-    } catch (err) {
-      console.error('Error generating preview:', err);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const playPreview = () => {
-    if (audioPreview && !isPlaying) {
-      const audio = new Audio(audioPreview);
-      audio.onended = () => setIsPlaying(false);
-      audio.play();
-      setIsPlaying(true);
     }
   };
 
@@ -327,33 +294,6 @@ const ScriptInput = ({ script, onScriptChange, selectedVoice }) => {
             <div className="text-sm text-gray-500">
               {script.length} characters • ~{Math.ceil(script.length / 150)} seconds
             </div>
-            
-            {selectedVoice && script.trim() && (
-              <div className="flex items-center space-x-2">
-                {audioPreview && (
-                  <button
-                    onClick={playPreview}
-                    disabled={isPlaying}
-                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    {isPlaying ? (
-                      <XMarkIcon className="h-4 w-4 mr-1" />
-                    ) : (
-                      <PlayIcon className="h-4 w-4 mr-1" />
-                    )}
-                    {isPlaying ? 'Playing...' : 'Play Preview'}
-                  </button>
-                )}
-                
-                <button
-                  onClick={generatePreview}
-                  disabled={isGenerating}
-                  className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {isGenerating ? 'Generating...' : 'Generate Preview'}
-                </button>
-              </div>
-            )}
           </div>
         </>
       )}
