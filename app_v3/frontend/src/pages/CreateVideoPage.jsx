@@ -607,8 +607,8 @@ const CreateVideoPage = () => {
           </p>
           
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-            <p className="text-green-800 font-medium">Job ID: {generatedJob.id}</p>
-            <p className="text-green-700 text-sm">Status: {generatedJob.status}</p>
+            <p className="text-green-800 font-medium">Job ID: {generatedJob.job?.id || generatedJob.id}</p>
+            <p className="text-green-700 text-sm">Status: {generatedJob.job?.status || generatedJob.status}</p>
           </div>
 
           <div className="space-x-4">

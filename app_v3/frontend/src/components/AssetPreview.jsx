@@ -115,7 +115,7 @@ const AssetPreview = ({ asset, onClose }) => {
               <div className="w-32 h-32 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-4">
                 <SpeakerWaveIcon className="w-16 h-16 text-blue-600" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <h3 className="text-lg font-medium text-gray-900 mb-2 break-words" title={asset.filename}>
                 {asset.filename}
               </h3>
             </div>
@@ -177,7 +177,7 @@ const AssetPreview = ({ asset, onClose }) => {
               <div className="w-32 h-32 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-4">
                 <SpeakerWaveIcon className="w-16 h-16 text-green-600" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <h3 className="text-lg font-medium text-gray-900 mb-2 break-words" title={asset.filename}>
                 {asset.filename}
               </h3>
               <p className="text-sm text-gray-500">Generated TTS Audio</p>
@@ -240,7 +240,7 @@ const AssetPreview = ({ asset, onClose }) => {
               <div className="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
                 <span className="text-2xl">📄</span>
               </div>
-              <h3 className="text-lg font-medium text-gray-900">
+              <h3 className="text-lg font-medium text-gray-900 break-words" title={asset.filename}>
                 {asset.filename}
               </h3>
             </div>
@@ -271,7 +271,7 @@ const AssetPreview = ({ asset, onClose }) => {
               <div className="w-32 h-32 mx-auto bg-purple-100 rounded-full flex items-center justify-center mb-4">
                 <span className="text-6xl">🎬</span>
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <h3 className="text-lg font-medium text-gray-900 mb-2 break-words" title={asset.filename}>
                 {asset.filename}
               </h3>
               <p className="text-sm text-gray-500">Generated Video</p>
@@ -296,7 +296,7 @@ const AssetPreview = ({ asset, onClose }) => {
             <div className="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
               <span className="text-2xl">📁</span>
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <h3 className="text-lg font-medium text-gray-900 mb-2 break-words" title={asset.filename}>
               {asset.filename}
             </h3>
             <p className="text-gray-500">

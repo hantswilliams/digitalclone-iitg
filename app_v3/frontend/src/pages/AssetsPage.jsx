@@ -78,11 +78,13 @@ const AssetCard = ({ asset, onDelete, onView }) => {
 
   return (
     <div className="bg-white rounded-lg shadow border border-gray-200 p-6 hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between">
-        <div className="flex items-center space-x-3">
+      <div className="flex items-start justify-between min-w-0">
+        <div className="flex items-center space-x-3 flex-1 min-w-0">
           <div className="text-2xl">{getAssetTypeIcon(asset.asset_type)}</div>
-          <div>
-            <h3 className="text-lg font-medium text-gray-900">{asset.filename}</h3>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg font-medium text-gray-900 break-words truncate" title={asset.filename}>
+              {asset.filename}
+            </h3>
             <p className="text-sm text-gray-500 capitalize">{asset.asset_type} • {formatFileSize(asset.file_size)}</p>
           </div>
         </div>
