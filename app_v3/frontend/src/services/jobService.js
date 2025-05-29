@@ -25,8 +25,44 @@ export const jobService = {
 
   // Create new job
   createJob: async (jobData) => {
-    const response = await api.post('/api/jobs/', jobData);
-    return response.data;
+    console.log('🚀 ================== JOB SERVICE: CREATE JOB ==================');
+    console.log('📤 jobService.createJob called with data:', JSON.stringify(jobData, null, 2));
+    console.log('🔗 API endpoint: /api/jobs/');
+    console.log('⏰ Request timestamp:', new Date().toISOString());
+    
+    try {
+      const startTime = Date.now();
+      console.log('⏳ Sending API request...');
+      
+      const response = await api.post('/api/jobs/', jobData);
+      const requestDuration = Date.now() - startTime;
+      
+      console.log('✅ JOB SERVICE: API Response received:');
+      console.log('⏱️ Request duration:', `${requestDuration}ms`);
+      console.log('📊 Response status:', response.status);
+      console.log('📋 Response headers:', response.headers);
+      console.log('📦 Response data:', JSON.stringify(response.data, null, 2));
+      console.log('🚀 ================== JOB SERVICE: SUCCESS ==================');
+      
+      return response.data;
+    } catch (error) {
+      console.error('❌ ================== JOB SERVICE: ERROR ==================');
+      console.error('💥 jobService.createJob failed:');
+      console.error('📊 Error details:', {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        headers: error.response?.headers,
+        config: error.config ? {
+          url: error.config.url,
+          method: error.config.method,
+          data: error.config.data
+        } : null
+      });
+      console.error('🚀 ================== JOB SERVICE: END ERROR ==================');
+      throw error;
+    }
   },
 
   // Update job metadata

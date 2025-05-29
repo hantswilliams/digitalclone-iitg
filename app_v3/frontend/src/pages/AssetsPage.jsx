@@ -10,7 +10,8 @@ const AssetTypeFilter = ({ activeFilter, onFilterChange }) => {
     { value: 'portrait', label: 'Portraits' },
     { value: 'voice_sample', label: 'Voice Samples' },
     { value: 'script', label: 'Scripts' },
-    { value: 'generated_audio', label: 'TTS Outputs' }
+    { value: 'generated_audio', label: 'TTS Outputs' },
+    { value: 'generated_video', label: 'Generated Videos' }
   ];
 
   return (
@@ -43,6 +44,8 @@ const AssetCard = ({ asset, onDelete, onView }) => {
         return '📄';
       case 'generated_audio':
         return '🗣️';
+      case 'generated_video':
+        return '🎬';
       default:
         return '📁';
     }

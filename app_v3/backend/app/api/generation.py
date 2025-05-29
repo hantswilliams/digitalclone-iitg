@@ -26,18 +26,17 @@ class TTSRequestSchema(Schema):
 
 
 class VideoRequestSchema(Schema):
-    """Schema for video generation requests."""
+    """Schema for video generation requests using KDTalker."""
     portrait_asset_id = fields.Int(required=True,
                                   error_messages={'required': 'Portrait asset ID is required'})
     audio_asset_id = fields.Int(required=True,
                                error_messages={'required': 'Audio asset ID is required'})
-    enhancer = fields.Str(load_default='gfpgan', validate=lambda x: x in ['gfpgan', 'RestoreFormer'])
-    face_enhance = fields.Bool(load_default=True)
-    background_enhance = fields.Bool(load_default=True)
-    preprocess = fields.Str(load_default='crop', validate=lambda x: x in ['crop', 'resize', 'full', 'extcrop', 'extfull'])
-    fps = fields.Int(load_default=25, validate=lambda x: 15 <= x <= 60)
-    use_blink = fields.Bool(load_default=True)
-    exp_scale = fields.Float(load_default=1.0, validate=lambda x: 0.1 <= x <= 2.0)
+    # KDTalker specific parameters
+    driven_audio_type = fields.Str(load_default='upload', validate=lambda x: x in ['upload', 'tts'])
+    smoothed_pitch = fields.Float(load_default=0.8, validate=lambda x: 0.0 <= x <= 1.0)
+    smoothed_yaw = fields.Float(load_default=0.8, validate=lambda x: 0.0 <= x <= 1.0)
+    smoothed_roll = fields.Float(load_default=0.8, validate=lambda x: 0.0 <= x <= 1.0)
+    smoothed_t = fields.Float(load_default=0.8, validate=lambda x: 0.0 <= x <= 1.0)
     priority = fields.Str(load_default='normal', validate=lambda x: x in ['low', 'normal', 'high', 'urgent'])
 
 
@@ -327,20 +326,18 @@ def _get_task_priority(priority_str: str) -> int:
 @jwt_required()
 def generate_video_endpoint():
     """
-    Generate talking-head video from portrait image and audio.
+    Generate talking-head video from portrait image and audio using KDTalker.
     
     Request body:
     {
         "portrait_asset_id": 123,
         "audio_asset_id": 456,
-        "enhancer": "gfpgan",        // optional, default "gfpgan"
-        "face_enhance": true,        // optional, default true
-        "background_enhance": true,  // optional, default true
-        "preprocess": "crop",        // optional, default "crop"
-        "fps": 25,                   // optional, default 25
-        "use_blink": true,          // optional, default true
-        "exp_scale": 1.0,           // optional, default 1.0
-        "priority": "normal"         // optional, default "normal"
+        "driven_audio_type": "upload",  // optional, default "upload"
+        "smoothed_pitch": 0.8,         // optional, default 0.8 (0.0-1.0)
+        "smoothed_yaw": 0.8,           // optional, default 0.8 (0.0-1.0)
+        "smoothed_roll": 0.8,          // optional, default 0.8 (0.0-1.0)
+        "smoothed_t": 0.8,             // optional, default 0.8 (0.0-1.0)
+        "priority": "normal"           // optional, default "normal"
     }
     
     Returns:
@@ -413,13 +410,11 @@ def generate_video_endpoint():
             parameters={
                 'portrait_asset_id': data['portrait_asset_id'],
                 'audio_asset_id': data['audio_asset_id'],
-                'enhancer': data['enhancer'],
-                'face_enhance': data['face_enhance'],
-                'background_enhance': data['background_enhance'],
-                'preprocess': data['preprocess'],
-                'fps': data['fps'],
-                'use_blink': data['use_blink'],
-                'exp_scale': data['exp_scale']
+                'driven_audio_type': data['driven_audio_type'],
+                'smoothed_pitch': data['smoothed_pitch'],
+                'smoothed_yaw': data['smoothed_yaw'],
+                'smoothed_roll': data['smoothed_roll'],
+                'smoothed_t': data['smoothed_t']
             },
             description=f"Generate talking-head video from portrait {portrait_asset.filename}"
         )

@@ -23,14 +23,12 @@ logger = logging.getLogger(__name__)
 @dataclass
 class VideoGenerationConfig:
     """Configuration for video generation parameters."""
-    # KDTalker specific settings - simplified for Gradio client
-    enhancer: str = 'gfpgan'  # Options: gfpgan, RestoreFormer
-    preprocess: str = 'crop'  # Options: crop, resize, full, extcrop, extfull
-    fps: int = 25
-    face_enhance: bool = True
-    background_enhance: bool = True
-    use_blink: bool = True
-    exp_scale: float = 1.0
+    # KDTalker specific settings - based on working debug script
+    driven_audio_type: str = "upload"  # "upload" or "tts"
+    smoothed_pitch: float = 0.8
+    smoothed_yaw: float = 0.8
+    smoothed_roll: float = 0.8
+    smoothed_t: float = 0.8
 
 
 class KDTalkerClient:
@@ -59,9 +57,13 @@ class KDTalkerClient:
                 "Install it with: pip install gradio_client"
             )
         
-        self.space_name = space_name or os.getenv('KDTALKER_SPACE', 'fffiloni/KDTalker')
+        self.space_name = space_name or os.getenv('KDTALKER_SPACE', 'hants/KDTalker')
         self.timeout = timeout
         self.client = None
+        self.hf_token = os.getenv('HF_API_TOKEN')
+        
+        if not self.hf_token:
+            logger.warning("HF_API_TOKEN not found in environment variables")
         
         logger.info(f"Initialized KDTalker client for space: {self.space_name}")
     
@@ -69,7 +71,10 @@ class KDTalkerClient:
         """Get or create Gradio client instance."""
         if self.client is None:
             try:
-                self.client = Client(self.space_name)
+                if self.hf_token:
+                    self.client = Client(self.space_name, hf_token=self.hf_token)
+                else:
+                    self.client = Client(self.space_name)
                 logger.info(f"Connected to KDTalker space: {self.space_name}")
             except Exception as e:
                 raise ConnectionError(f"Failed to connect to KDTalker space {self.space_name}: {e}")
@@ -150,66 +155,63 @@ class KDTalkerClient:
         try:
             client = self._get_client()
             
-            # Use gradio_client to call KDTalker
-            # Based on the API outlined in the document
+            # Use gradio_client to call KDTalker with correct parameters
+            # Based on the working debug script
             logger.info("Calling KDTalker via Gradio client...")
             start_time = time.time()
             
             result = client.predict(
+                upload_driven_audio=handle_file(str(audio_path)),
+                tts_driven_audio=None,  # Set to None since we're using upload audio
+                driven_audio_type=config.driven_audio_type,
                 source_image=handle_file(str(portrait_path)),
-                driven_audio=handle_file(str(audio_path)),
-                api_name="/gradio_infer"
+                smoothed_pitch=config.smoothed_pitch,
+                smoothed_yaw=config.smoothed_yaw,
+                smoothed_roll=config.smoothed_roll,
+                smoothed_t=config.smoothed_t,
+                api_name="/generate"
             )
             
             generation_time = time.time() - start_time
             logger.info(f"Video generation completed in {generation_time:.2f} seconds")
             
-            # Handle the result - it should be a URL or path to the generated video
-            if isinstance(result, str):
-                video_url_or_path = result
+            # Handle the result - KDTalker returns a dict with 'video' key
+            if isinstance(result, dict) and 'video' in result and result['video']:
+                video_path_from_result = result['video']
+            elif isinstance(result, str):
+                video_path_from_result = result
             elif isinstance(result, (list, tuple)) and len(result) > 0:
-                video_url_or_path = result[0]
+                video_path_from_result = result[0]
             else:
                 raise ValueError(f"Unexpected result format from KDTalker: {result}")
             
-            # If output_path is specified, download the video from URL to local path
+            # If output_path is specified, copy the video to the desired location
             if output_path:
                 output_path = Path(output_path)
+                output_path.parent.mkdir(parents=True, exist_ok=True)
                 
-                if video_url_or_path.startswith('http'):
-                    # Download from URL
-                    import requests
-                    response = requests.get(video_url_or_path, timeout=60)
-                    response.raise_for_status()
-                    
-                    output_path.parent.mkdir(parents=True, exist_ok=True)
-                    with open(output_path, 'wb') as f:
-                        f.write(response.content)
-                    
-                    file_size = output_path.stat().st_size
-                    final_path = str(output_path)
-                    
-                else:
-                    # It's already a local path
-                    final_path = video_url_or_path
-                    file_size = Path(final_path).stat().st_size if Path(final_path).exists() else 0
+                # Copy the video file
+                import shutil
+                shutil.copy2(video_path_from_result, output_path)
+                final_path = str(output_path)
+                file_size = output_path.stat().st_size
             else:
-                final_path = video_url_or_path
+                final_path = video_path_from_result
                 file_size = Path(final_path).stat().st_size if Path(final_path).exists() else 0
             
             # Generate metadata
             result_data = {
                 'status': 'success',
                 'video_path': final_path,
-                'original_result': video_url_or_path,
+                'original_result': video_path_from_result,
                 'file_size': file_size,
                 'generation_time': generation_time,
                 'config': {
-                    'enhancer': config.enhancer,
-                    'preprocess': config.preprocess,
-                    'fps': config.fps,
-                    'face_enhance': config.face_enhance,
-                    'background_enhance': config.background_enhance
+                    'driven_audio_type': config.driven_audio_type,
+                    'smoothed_pitch': config.smoothed_pitch,
+                    'smoothed_yaw': config.smoothed_yaw,
+                    'smoothed_roll': config.smoothed_roll,
+                    'smoothed_t': config.smoothed_t
                 },
                 'input_files': {
                     'portrait': str(portrait_path),

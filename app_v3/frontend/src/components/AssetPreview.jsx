@@ -264,6 +264,32 @@ const AssetPreview = ({ asset, onClose }) => {
           </div>
         );
 
+      case 'generated_video':
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <div className="w-32 h-32 mx-auto bg-purple-100 rounded-full flex items-center justify-center mb-4">
+                <span className="text-6xl">🎬</span>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {asset.filename}
+              </h3>
+              <p className="text-sm text-gray-500">Generated Video</p>
+            </div>
+
+            <div className="flex justify-center">
+              <video
+                controls
+                className="max-w-full max-h-96 rounded-lg shadow-lg"
+                onError={() => setError('Failed to load video file')}
+              >
+                <source src={asset.download_url} type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          </div>
+        );
+
       default:
         return (
           <div className="text-center py-8">

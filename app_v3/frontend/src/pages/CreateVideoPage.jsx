@@ -479,13 +479,40 @@ const CreateVideoPage = () => {
   };
 
   const handleGenerate = async () => {
-    console.log('🎬 handleGenerate called');
+    console.log('🎬 ================== STARTING VIDEO GENERATION ==================');
+    console.log('🎬 handleGenerate called at:', new Date().toISOString());
     console.log('📋 Current state:', {
       selectedPortrait: selectedPortrait?.id,
+      selectedPortraitName: selectedPortrait?.name,
+      selectedPortraitType: selectedPortrait?.type,
       selectedVoice: selectedVoice?.id,
+      selectedVoiceName: selectedVoice?.name,
+      selectedVoiceType: selectedVoice?.type,
       scriptLength: script?.length,
+      scriptPreview: script?.substring(0, 100) + (script?.length > 100 ? '...' : ''),
       isGenerating
     });
+
+    // Validation checks with detailed logging
+    if (!selectedPortrait) {
+      console.error('❌ VALIDATION FAILED: No portrait selected');
+      alert('Please select a portrait image before generating video.');
+      return;
+    }
+    
+    if (!selectedVoice) {
+      console.error('❌ VALIDATION FAILED: No voice selected');
+      alert('Please select a voice before generating video.');
+      return;
+    }
+    
+    if (!script || script.trim().length === 0) {
+      console.error('❌ VALIDATION FAILED: No script provided');
+      alert('Please provide a script before generating video.');
+      return;
+    }
+
+    console.log('✅ VALIDATION PASSED: All required fields present');
 
     try {
       setIsGenerating(true);
@@ -500,29 +527,72 @@ const CreateVideoPage = () => {
           portrait_asset_id: selectedPortrait.id,
           voice_asset_id: selectedVoice.id,
           script: script,
-          output_format: 'mp4'
+          output_format: 'mp4',
+          // Additional debug info
+          frontend_timestamp: new Date().toISOString(),
+          frontend_version: 'create-video-wizard-v1'
         },
         asset_ids: [selectedPortrait.id, selectedVoice.id]
       };
 
-      console.log('📤 Sending job data:', jobData);
-      const response = await jobService.createJob(jobData);
-      console.log('✅ Job creation response:', response);
+      console.log('📤 SENDING JOB DATA:', JSON.stringify(jobData, null, 2));
+      console.log('🔗 Calling jobService.createJob...');
       
-      setGeneratedJob(response.data || response);
-      console.log('🎯 Setting generatedJob:', response.data || response);
+      const startTime = Date.now();
+      const response = await jobService.createJob(jobData);
+      const requestDuration = Date.now() - startTime;
+      
+      console.log('✅ JOB CREATION RESPONSE RECEIVED:', {
+        duration: `${requestDuration}ms`,
+        response: response,
+        responseData: response.data,
+        responseKeys: Object.keys(response),
+        hasJobData: !!response.data?.job || !!response.job
+      });
+      
+      const jobResult = response.data || response;
+      setGeneratedJob(jobResult);
+      console.log('🎯 Setting generatedJob:', jobResult);
+      console.log('🆔 Job ID:', jobResult?.job?.id || jobResult?.id);
+      console.log('📊 Job Status:', jobResult?.job?.status || jobResult?.status);
+      console.log('🎬 ================== VIDEO GENERATION INITIATED ==================');
       
     } catch (err) {
+      console.error('❌ ================== VIDEO GENERATION FAILED ==================');
       console.error('❌ Error generating video:', err);
       console.error('📊 Error details:', {
         message: err.message,
         status: err.response?.status,
-        data: err.response?.data
+        statusText: err.response?.statusText,
+        data: err.response?.data,
+        stack: err.stack,
+        config: err.config ? {
+          url: err.config.url,
+          method: err.config.method,
+          headers: err.config.headers
+        } : null
       });
-      alert('Failed to start video generation. Please try again.');
+      
+      // More descriptive error messages
+      let errorMessage = 'Failed to start video generation. ';
+      if (err.response?.status === 401) {
+        errorMessage += 'Authentication failed. Please log in again.';
+      } else if (err.response?.status === 400) {
+        errorMessage += 'Invalid request data. Please check your inputs.';
+      } else if (err.response?.status === 500) {
+        errorMessage += 'Server error. Please try again later.';
+      } else if (err.message.includes('Network Error')) {
+        errorMessage += 'Network connection failed. Please check your internet connection.';
+      } else {
+        errorMessage += 'Please try again.';
+      }
+      
+      alert(errorMessage);
+      console.error('🎬 ================== END ERROR LOG ==================');
     } finally {
       setIsGenerating(false);
       console.log('🔄 Setting isGenerating to false');
+      console.log('🎬 ================== VIDEO GENERATION PROCESS ENDED ==================');
     }
   };
 

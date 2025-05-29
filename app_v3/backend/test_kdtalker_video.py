@@ -18,6 +18,10 @@ import requests
 import json
 import tempfile
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Add the backend directory to Python path
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
@@ -111,12 +115,15 @@ def test_kdtalker_client_config():
         
         # Test VideoGenerationConfig
         config = VideoGenerationConfig(
-            enhancer='gfpgan',
-            face_enhance=True,
-            fps=25
+            driven_audio_type='upload',
+            smoothed_pitch=0.8,
+            smoothed_yaw=0.8,
+            smoothed_roll=0.8,
+            smoothed_t=0.8
         )
         print_success("VideoGenerationConfig created successfully")
-        print_info(f"Config: enhancer={config.enhancer}, fps={config.fps}")
+        print_info(f"Config: smoothed_pitch={config.smoothed_pitch}, smoothed_yaw={config.smoothed_yaw}")
+        print_info(f"         smoothed_roll={config.smoothed_roll}, smoothed_t={config.smoothed_t}")
         
         return True
         
@@ -285,13 +292,11 @@ def test_video_generation_api(token, portrait_asset_id, audio_asset_id):
         request_data = {
             "portrait_asset_id": portrait_asset_id,
             "audio_asset_id": audio_asset_id,
-            "enhancer": "gfpgan",
-            "face_enhance": True,
-            "background_enhance": True,
-            "preprocess": "crop",
-            "fps": 25,
-            "use_blink": True,
-            "exp_scale": 1.0,
+            "driven_audio_type": "upload",
+            "smoothed_pitch": 0.8,
+            "smoothed_yaw": 0.8,
+            "smoothed_roll": 0.8,
+            "smoothed_t": 0.8,
             "priority": "normal"
         }
         

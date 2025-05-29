@@ -1,6 +1,7 @@
 """
 Job management API endpoints
 """
+import logging
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from marshmallow import ValidationError
@@ -14,6 +15,9 @@ from ..schemas import (
     MessageResponseSchema, ErrorResponseSchema, PaginationSchema
 )
 from ..utils import handle_errors
+
+# Initialize logger
+logger = logging.getLogger(__name__)
 
 
 def get_fresh_job(job_id, user_id):
@@ -130,10 +134,21 @@ def create_job():
     """Create a new job"""
     user_id = get_jwt_identity()
     
+    # Add comprehensive logging for job creation
+    logger.info(f"🎬 ================== JOB CREATION STARTED ==================")
+    logger.info(f"👤 User ID: {user_id}")
+    logger.info(f"📥 Request data: {request.json}")
+    logger.info(f"🌐 Request headers: {dict(request.headers)}")
+    logger.info(f"🔗 Request URL: {request.url}")
+    logger.info(f"📍 Request method: {request.method}")
+    
     try:
         # Validate request data
+        logger.info("🔍 Starting request validation...")
         data = job_create_schema.load(request.json)
+        logger.info(f"✅ Request validation successful. Processed data: {data}")
     except ValidationError as err:
+        logger.error(f"❌ Validation failed: {err.messages}")
         return jsonify(error_schema.dump({
             'message': 'Validation failed',
             'details': err.messages
@@ -141,6 +156,7 @@ def create_job():
     
     # Validate asset ownership if asset IDs provided
     if data.get('asset_ids'):
+        logger.info(f"🔍 Validating asset ownership for assets: {data['asset_ids']}")
         assets = Asset.query.filter(
             and_(
                 Asset.id.in_(data['asset_ids']),
@@ -148,12 +164,20 @@ def create_job():
             )
         ).all()
         
+        logger.info(f"📁 Found {len(assets)} assets owned by user (expected {len(data['asset_ids'])})")
+        for asset in assets:
+            logger.info(f"  - Asset {asset.id}: {asset.original_filename} (type: {asset.asset_type.value}, status: {asset.status.value})")
+        
         if len(assets) != len(data['asset_ids']):
+            logger.error(f"❌ Asset validation failed: {len(assets)} found, {len(data['asset_ids'])} requested")
             return jsonify(error_schema.dump({
                 'message': 'One or more assets not found or not owned by user'
             })), 400
-    
+        
+        logger.info("✅ Asset validation successful")
+
     # Create new job
+    logger.info(f"🏗️ Creating new job with type: {data['job_type']}")
     job = Job(
         title=data['title'],
         description=data.get('description'),
@@ -164,18 +188,25 @@ def create_job():
         estimated_duration=data.get('estimated_duration')
     )
     
+    logger.info(f"💾 Adding job to database...")
     db.session.add(job)
     db.session.flush()  # Get the job ID
+    logger.info(f"✅ Job created with ID: {job.id}")
     
     # Add assets to job if provided
     if data.get('asset_ids'):
+        logger.info(f"🔗 Adding {len(assets)} assets to job...")
         for asset in assets:
             job.add_asset(asset)
+            logger.info(f"  - Added asset {asset.id}: {asset.original_filename}")
     
     db.session.commit()
-    
+    logger.info("💾 Job and assets committed to database")
+
     # Dispatch appropriate Celery task based on job type
     task_result = None
+    logger.info(f"🚀 Dispatching Celery task for job type: {job.job_type}")
+    
     if job.job_type == JobType.TEXT_TO_SPEECH:
         from ..tasks.tts_tasks import generate_speech
         # For TTS, we need a voice_clone_id (asset ID) instead of voice_sample string
@@ -190,10 +221,12 @@ def create_job():
                 job.parameters.get('text', ''),
                 voice_asset_id
             )
+            logger.info(f"✅ Dispatched TTS task: {task_result.id}")
         else:
             # No voice asset provided, mark job as failed
             job.status = JobStatus.FAILED
             job.progress_message = 'No voice sample provided'
+            logger.error(f"❌ TTS task dispatch failed: No voice asset provided")
     elif job.job_type == JobType.VOICE_CLONE:
         from ..tasks.voice_tasks import clone_voice_task
         task_result = clone_voice_task.delay(
@@ -201,14 +234,15 @@ def create_job():
             job.parameters.get('voice_sample_path', ''),
             user_id
         )
+        logger.info(f"✅ Dispatched voice cloning task: {task_result.id}")
     elif job.job_type == JobType.VIDEO_GENERATION:
         from ..tasks.video_tasks import generate_video
         task_result = generate_video.delay(
             job.id,
-            job.parameters.get('portrait_path', ''),
-            job.parameters.get('audio_path', ''),
-            user_id
+            job.parameters.get('portrait_asset_id', ''),
+            job.parameters.get('audio_asset_id', '')
         )
+        logger.info(f"✅ Dispatched video generation task: {task_result.id}")
     elif job.job_type == JobType.SCRIPT_GENERATION:
         from ..tasks.llm_tasks import generate_script
         task_result = generate_script.delay(
@@ -220,21 +254,54 @@ def create_job():
             style=job.parameters.get('style', 'conversational'),
             additional_context=job.parameters.get('additional_context', '')
         )
+        logger.info(f"✅ Dispatched script generation task: {task_result.id}")
     elif job.job_type == JobType.FULL_PIPELINE:
-        from ..tasks.video_tasks import full_generation_pipeline
-        task_result = full_generation_pipeline.delay(
-            job.id,
-            job.parameters,
-            user_id
-        )
+        logger.info("🎬 Processing FULL_PIPELINE job type")
+        
+        # Extract required parameters for full pipeline
+        portrait_asset_id = job.parameters.get('portrait_asset_id')
+        voice_asset_id = job.parameters.get('voice_asset_id')
+        script = job.parameters.get('script')
+        
+        logger.info(f"📋 Full pipeline parameters:")
+        logger.info(f"  - Portrait Asset ID: {portrait_asset_id}")
+        logger.info(f"  - Voice Asset ID: {voice_asset_id}")
+        logger.info(f"  - Script length: {len(script) if script else 0} characters")
+        logger.info(f"  - Script preview: {script[:100] + '...' if script and len(script) > 100 else script}")
+        logger.info(f"  - All parameters: {job.parameters}")
+        
+        if not portrait_asset_id or not voice_asset_id or not script:
+            logger.error(f"❌ Full pipeline validation failed:")
+            logger.error(f"  - Portrait Asset ID: {'✓' if portrait_asset_id else '✗'}")
+            logger.error(f"  - Voice Asset ID: {'✓' if voice_asset_id else '✗'}")
+            logger.error(f"  - Script: {'✓' if script else '✗'}")
+            job.status = JobStatus.FAILED
+            job.progress_message = 'Missing required parameters: portrait_asset_id, voice_asset_id, and script are required'
+            db.session.commit()
+            logger.error(f"❌ Full pipeline task dispatch failed: Missing parameters")
+        else:
+            logger.info("✅ Full pipeline validation passed, dispatching full generation pipeline...")
+            from ..tasks.video_tasks import full_generation_pipeline
+            task_result = full_generation_pipeline.delay(
+                job.id,
+                portrait_asset_id,
+                voice_asset_id,
+                script,
+                job.user_id
+            )
+            logger.info(f"✅ Dispatched full generation pipeline task: {task_result.id}")
+    else:
+        logger.warning(f"⚠️ Unknown job type: {job.job_type}")
     
     # Update job with task ID if task was started
     if task_result:
         job.celery_task_id = task_result.id
         db.session.commit()
+        logger.info(f"✅ Job updated with task ID: {task_result.id}")
     
     # Return created job
     response_data = job.to_dict(include_details=True)
+    logger.info(f"🎉 Job creation completed: {response_data}")
     return jsonify({'job': response_data}), 201
 
 
