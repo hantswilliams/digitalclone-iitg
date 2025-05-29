@@ -10,6 +10,7 @@ import AssetsPage from './pages/AssetsPage';
 import JobsPage from './pages/JobsPage';
 import CreateVideoPage from './pages/CreateVideoPage';
 import CreateAudioPage from './pages/CreateAudioPage';
+import RecordAudioPage from './pages/RecordAudioPage';
 
 function App() {
 
@@ -60,6 +61,14 @@ function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <CreateAudioPage />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/record-audio" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <RecordAudioPage />
                 </AppLayout>
               </ProtectedRoute>
             } />

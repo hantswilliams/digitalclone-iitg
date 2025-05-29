@@ -23,7 +23,7 @@ assets_bp = Blueprint('assets', __name__)
 
 # File validation constants
 ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
-ALLOWED_AUDIO_EXTENSIONS = {'.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a'}
+ALLOWED_AUDIO_EXTENSIONS = {'.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a', '.webm'}
 ALLOWED_SCRIPT_EXTENSIONS = {'.txt', '.md', '.json'}
 
 MAX_FILE_SIZES = {
