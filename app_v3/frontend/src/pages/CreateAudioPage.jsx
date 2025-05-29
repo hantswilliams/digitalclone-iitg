@@ -39,13 +39,19 @@ const CreateAudioPage = () => {
   const loadExistingVoiceSamples = async () => {
     setLoadingVoiceSamples(true);
     try {
+      // Get all audio assets and filter for voice samples on frontend
+      // to handle any case sensitivity issues
       const response = await assetService.getAssets({
-        asset_type: 'voice_sample',
         status: 'ready'
       });
       
       if (response.assets) {
-        setExistingVoiceSamples(response.assets);
+        // Filter for voice samples (handle both voice_sample and Voice_sample)
+        const voiceSamples = response.assets.filter(asset => 
+          asset.asset_type && 
+          asset.asset_type.toLowerCase() === 'voice_sample'
+        );
+        setExistingVoiceSamples(voiceSamples);
       }
     } catch (err) {
       console.error('Failed to load existing voice samples:', err);

@@ -98,26 +98,57 @@ export const AuthProvider = ({ children }) => {
   // Load user on app start
   useEffect(() => {
     const loadUser = async () => {
+      console.log('🔐 AuthContext: Loading user on app start...');
       dispatch({ type: AUTH_ACTIONS.LOAD_USER_START });
 
       try {
-        if (authService.isAuthenticated()) {
+        const hasToken = authService.isAuthenticated();
+        console.log('🔑 AuthContext: Has token?', hasToken);
+        
+        if (hasToken) {
+          console.log('👤 AuthContext: Fetching user profile...');
           const userProfile = await authService.getProfile();
+          console.log('✅ AuthContext: User profile loaded:', userProfile);
+          
+          // Profile endpoint returns user data directly, not wrapped in 'user' property
+          const userData = userProfile.user || userProfile;
+          console.log('👤 AuthContext: Extracted user data:', userData);
+          
           dispatch({
             type: AUTH_ACTIONS.LOAD_USER_SUCCESS,
-            payload: userProfile.user,
+            payload: userData,
           });
         } else {
+          console.log('❌ AuthContext: No authentication token found');
           dispatch({
             type: AUTH_ACTIONS.LOAD_USER_FAILURE,
             payload: 'No authentication token found',
           });
         }
       } catch (error) {
-        dispatch({
-          type: AUTH_ACTIONS.LOAD_USER_FAILURE,
-          payload: error.response?.data?.message || 'Failed to load user',
-        });
+        console.error('❌ AuthContext: Error loading user:', error);
+        console.error('❌ AuthContext: Error response:', error.response);
+        console.error('❌ AuthContext: Error status:', error.response?.status);
+        console.error('❌ AuthContext: Error data:', error.response?.data);
+        
+        // If the error is 401 and we have tokens, the interceptor should have handled refresh
+        // If we still get 401, it means both access and refresh tokens are invalid
+        if (error.response?.status === 401) {
+          console.log('🚪 AuthContext: 401 error - clearing tokens and logging out');
+          // Clear tokens and log out
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          dispatch({
+            type: AUTH_ACTIONS.LOGOUT,
+          });
+        } else {
+          // For other errors, just set the error but keep trying to stay authenticated
+          console.log('⚠️ AuthContext: Non-401 error, maintaining auth state');
+          dispatch({
+            type: AUTH_ACTIONS.LOAD_USER_FAILURE,
+            payload: error.response?.data?.message || 'Failed to load user',
+          });
+        }
       }
     };
 
