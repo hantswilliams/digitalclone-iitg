@@ -8,6 +8,7 @@ import RegisterPage from './pages/auth/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import AssetsPage from './pages/AssetsPage';
 import JobsPage from './pages/JobsPage';
+import JobDetailsPage from './pages/JobDetailsPage';
 import CreateVideoPage from './pages/CreateVideoPage';
 import CreateAudioPage from './pages/CreateAudioPage';
 import RecordAudioPage from './pages/RecordAudioPage';
@@ -36,6 +37,14 @@ function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <JobsPage />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/jobs/:jobId" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <JobDetailsPage />
                 </AppLayout>
               </ProtectedRoute>
             } />
