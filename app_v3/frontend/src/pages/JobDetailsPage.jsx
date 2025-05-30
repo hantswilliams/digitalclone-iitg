@@ -145,8 +145,15 @@ const JobDetailsPage = () => {
     try {
       console.log(`📥 Downloading asset: ${asset.original_filename}`);
       
+      // Use download_url for fetching the file
+      const downloadUrl = asset.download_url;
+      if (!downloadUrl) {
+        alert('Download URL not available');
+        return;
+      }
+      
       // Create a temporary download link
-      const response = await fetch(asset.storage_url);
+      const response = await fetch(downloadUrl);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       
@@ -166,8 +173,19 @@ const JobDetailsPage = () => {
   };
 
   const previewAsset = (asset) => {
-    if (asset.storage_url) {
-      window.open(asset.storage_url, '_blank');
+    // Try different URL fields based on asset type
+    let assetUrl = null;
+    
+    if (asset.preview_url) {
+      assetUrl = asset.preview_url; // For images
+    } else if (asset.download_url) {
+      assetUrl = asset.download_url; // For audio/video files
+    }
+    
+    if (assetUrl) {
+      window.open(assetUrl, '_blank');
+    } else {
+      alert('Asset preview not available - no URL found');
     }
   };
 
@@ -422,6 +440,16 @@ const JobDetailsPage = () => {
                 <ClockIcon className="h-4 w-4 mr-2" />
                 Refresh Status
               </button>
+              
+              {job.status === 'completed' && job.result_asset_id && assets[job.result_asset_id] && (
+                <button
+                  onClick={() => previewAsset(assets[job.result_asset_id])}
+                  className="w-full inline-flex items-center justify-center px-3 py-2 border border-green-300 shadow-sm text-sm font-medium rounded-md text-green-700 bg-green-50 hover:bg-green-100"
+                >
+                  <PlayIcon className="h-4 w-4 mr-2" />
+                  View Result
+                </button>
+              )}
               
               {job.status === 'completed' && job.job_type === 'full_pipeline' && (
                 <button

@@ -8,7 +8,7 @@ from marshmallow import ValidationError
 from sqlalchemy import and_, or_, desc
 
 from ..extensions import db
-from ..models import Job, JobStep, Asset, JobStatus, JobType, JobPriority, StepStatus
+from ..models import Job, JobStep, Asset, AssetType, JobStatus, JobType, JobPriority, StepStatus
 from ..schemas import (
     JobCreateSchema, JobUpdateSchema, JobResponseSchema, JobListSchema,
     JobProgressUpdateSchema, JobStepCreateSchema, JobStepSchema,
@@ -106,10 +106,34 @@ def list_jobs():
     
     jobs = pagination.items
     
-    # Serialize jobs
+    # Serialize jobs with asset information for preview functionality
     jobs_data = []
     for job in jobs:
         job_dict = job.to_dict(include_details=False)
+        # Add asset IDs and output video ID for preview functionality
+        job_dict['asset_ids'] = [asset.id for asset in job.assets]
+        job_dict['output_video_id'] = job.output_video_id
+        # For completed jobs, add the result asset ID (prioritize final output)
+        if job.status == JobStatus.COMPLETED and job.assets:
+            # Prioritize finding the final result asset based on asset type
+            result_asset = None
+            
+            # First, look for generated video (final output for video generation jobs)
+            video_assets = [a for a in job.assets if a.asset_type == AssetType.GENERATED_VIDEO]
+            if video_assets:
+                result_asset = max(video_assets, key=lambda a: a.created_at)
+            
+            # If no video, look for generated audio (final output for TTS jobs)
+            if not result_asset:
+                audio_assets = [a for a in job.assets if a.asset_type == AssetType.GENERATED_AUDIO]
+                if audio_assets:
+                    result_asset = max(audio_assets, key=lambda a: a.created_at)
+            
+            # Fall back to the most recently created asset
+            if not result_asset:
+                result_asset = max(job.assets, key=lambda a: a.created_at)
+            
+            job_dict['result_asset_id'] = result_asset.id
         jobs_data.append(job_dict)
     
     response_data = {

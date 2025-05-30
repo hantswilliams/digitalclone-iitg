@@ -86,6 +86,7 @@ const ProgressBar = ({ progress, status }) => {
 };
 
 const JobCard = ({ job, onCancel, onView, onDelete }) => {
+  
   const getStatusBadge = (status) => {
     const statusConfig = {
       pending: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Pending', icon: '⏳' },
@@ -436,6 +437,39 @@ const JobsPage = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Priority</label>
                   <p className="text-sm text-gray-900">{selectedJob.priority}</p>
+                </div>
+              </div>
+              
+              {/* Asset Information */}
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-3">Asset Information</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600">Asset IDs</label>
+                    <p className="text-sm text-gray-900">
+                      {selectedJob.asset_ids && selectedJob.asset_ids.length > 0 
+                        ? selectedJob.asset_ids.join(', ') 
+                        : 'None'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600">Result Asset ID</label>
+                    <p className="text-sm text-gray-900">
+                      {selectedJob.result_asset_id || 'None'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600">Output Video ID</label>
+                    <p className="text-sm text-gray-900">
+                      {selectedJob.output_video_id || 'None'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600">Progress</label>
+                    <p className="text-sm text-gray-900">
+                      {selectedJob.progress || 0}%
+                    </p>
+                  </div>
                 </div>
               </div>
               
