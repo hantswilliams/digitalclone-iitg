@@ -43,7 +43,8 @@ export const assetService = {
   // Get specific asset details
   getAsset: async (assetId) => {
     const response = await api.get(`/api/assets/${assetId}`);
-    return response.data;
+    // Backend returns {asset: asset_dict}, extract just the asset
+    return response.data.asset;
   },
 
   // Update asset metadata

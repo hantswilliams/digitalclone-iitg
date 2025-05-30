@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { jobService } from '../services/jobService';
 import { StopIcon, EyeIcon, TrashIcon } from '@heroicons/react/24/outline';
+import JobDetailsComponent from '../components/JobDetailsComponent';
 
 const JobStatusFilter = ({ activeFilter, onFilterChange }) => {
   const filters = [
@@ -418,81 +420,29 @@ const JobsPage = () => {
       {/* Job Details Modal */}
       {selectedJob && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
-            <h3 className="text-lg font-medium mb-4">Job Details</h3>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Job ID</label>
-                  <p className="text-sm text-gray-900">{selectedJob.id}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Type</label>
-                  <p className="text-sm text-gray-900">{selectedJob.job_type}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Status</label>
-                  <p className="text-sm text-gray-900">{selectedJob.status}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Priority</label>
-                  <p className="text-sm text-gray-900">{selectedJob.priority}</p>
-                </div>
-              </div>
-              
-              {/* Asset Information */}
-              <div className="border-t pt-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-3">Asset Information</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Asset IDs</label>
-                    <p className="text-sm text-gray-900">
-                      {selectedJob.asset_ids && selectedJob.asset_ids.length > 0 
-                        ? selectedJob.asset_ids.join(', ') 
-                        : 'None'}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Result Asset ID</label>
-                    <p className="text-sm text-gray-900">
-                      {selectedJob.result_asset_id || 'None'}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Output Video ID</label>
-                    <p className="text-sm text-gray-900">
-                      {selectedJob.output_video_id || 'None'}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Progress</label>
-                    <p className="text-sm text-gray-900">
-                      {selectedJob.progress || 0}%
-                    </p>
-                  </div>
-                </div>
-              </div>
-              
-              {selectedJob.job_parameters && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Parameters</label>
-                  <pre className="text-sm text-gray-900 bg-gray-50 p-3 rounded border overflow-x-auto">
-                    {JSON.stringify(selectedJob.job_parameters, null, 2)}
-                  </pre>
-                </div>
-              )}
-              
-              {selectedJob.result_data && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Result</label>
-                  <pre className="text-sm text-gray-900 bg-gray-50 p-3 rounded border overflow-x-auto">
-                    {JSON.stringify(selectedJob.result_data, null, 2)}
-                  </pre>
-                </div>
-              )}
+          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-screen overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-gray-900">Job Details</h3>
+              <button
+                onClick={() => setSelectedJob(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <span className="sr-only">Close</span>
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
             
-            <div className="mt-6 flex justify-end">
+            <JobDetailsComponent job={selectedJob} />
+            
+            <div className="mt-6 flex justify-end space-x-3">
+              <Link
+                to={`/jobs/${selectedJob.id}`}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                View Full Details
+              </Link>
               <button
                 onClick={() => setSelectedJob(null)}
                 className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"

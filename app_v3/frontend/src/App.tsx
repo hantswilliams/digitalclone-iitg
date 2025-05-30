@@ -9,6 +9,7 @@ import DashboardPage from './pages/DashboardPage';
 import AssetsPage from './pages/AssetsPage';
 import JobsPage from './pages/JobsPage';
 import JobDetailsPage from './pages/JobDetailsPage';
+import AssetDetailsPage from './pages/AssetDetailsPage';
 import CreateVideoPage from './pages/CreateVideoPage';
 import CreateAudioPage from './pages/CreateAudioPage';
 import RecordAudioPage from './pages/RecordAudioPage';
@@ -54,6 +55,14 @@ function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <AssetsPage />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/assets/:assetId" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <AssetDetailsPage />
                 </AppLayout>
               </ProtectedRoute>
             } />

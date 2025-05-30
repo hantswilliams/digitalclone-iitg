@@ -503,8 +503,10 @@ def full_generation_pipeline(self, job_id: int, portrait_asset_id, voice_asset_i
                 raise ValueError(f"Main job {job_id} not found")
             
             main_job.status = JobStatus.PROCESSING
-            main_job.progress = 5
-            main_job.status_message = 'Starting full pipeline'
+            main_job.progress_percentage = 5
+            if not main_job.results:
+                main_job.results = {}
+            main_job.results['progress_message'] = 'Starting full pipeline'
             db.session.commit()
             logger.info(f"✅ Updated main job {job_id} status to PROCESSING")
             
@@ -513,43 +515,98 @@ def full_generation_pipeline(self, job_id: int, portrait_asset_id, voice_asset_i
             self.update_state(state='PROGRESS', meta={'progress': 10, 'status': 'Generating speech from script'})
             main_job.update_progress(10, 'Generating speech from script')
             
-            # Create a sub-job for TTS generation
-            tts_job = Job(
-                title=f"TTS for Full Pipeline",
-                description=f"Generate speech for full pipeline",
-                job_type=JobType.TEXT_TO_SPEECH,
-                priority=JobPriority.HIGH,
+            # Generate speech directly without creating sub-job - inline TTS logic
+            logger.info("🎤 Generating speech inline...")
+            
+            # Update task progress
+            self.update_state(state='PROGRESS', meta={'progress': 15, 'status': 'Loading voice asset'})
+            main_job.update_progress(15, 'Loading voice asset for cloning')
+            
+            # Get the voice asset
+            voice_asset = Asset.query.get(voice_asset_id)
+            if not voice_asset:
+                raise ValueError(f"Voice asset {voice_asset_id} not found")
+            
+            if voice_asset.asset_type != AssetType.VOICE_SAMPLE:
+                raise ValueError(f"Asset {voice_asset_id} is not a voice sample")
+            
+            # Download voice asset from storage
+            self.update_state(state='PROGRESS', meta={'progress': 20, 'status': 'Downloading reference voice'})
+            main_job.update_progress(20, 'Downloading reference voice from storage')
+            
+            voice_audio_data = storage_service.download_file(voice_asset.storage_path)
+            
+            # Initialize IndexTTS client
+            self.update_state(state='PROGRESS', meta={'progress': 25, 'status': 'Initializing TTS service'})
+            main_job.update_progress(25, 'Connecting to IndexTTS service')
+            
+            from ..services.tts import IndexTTSClient
+            indextts_client = IndexTTSClient()
+            
+            # Generate speech using IndexTTS
+            self.update_state(state='PROGRESS', meta={'progress': 30, 'status': 'Generating speech with voice clone'})
+            main_job.update_progress(30, 'Generating speech with cloned voice')
+            
+            speech_audio_data = indextts_client.generate_speech(
+                text=script_text,
+                speaker_audio=voice_audio_data
+            )
+            
+            # Store the generated audio
+            self.update_state(state='PROGRESS', meta={'progress': 40, 'status': 'Storing generated speech'})
+            main_job.update_progress(40, 'Storing generated audio file')
+            
+            # Generate unique filename for main job
+            import io
+            from datetime import datetime
+            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            audio_filename = f"speech/{job_id}/generated_speech_{timestamp}.wav"
+            
+            # Convert bytes to BytesIO for storage compatibility
+            audio_file_obj = io.BytesIO(speech_audio_data)
+            
+            audio_result = storage_service.upload_file(
+                file_data=audio_file_obj,
+                object_name=audio_filename,
+                content_type='audio/wav'
+            )
+            
+            if not audio_result.get('success'):
+                raise RuntimeError(f"Failed to upload audio file: {audio_result.get('error')}")
+            
+            # Create Asset record for the generated audio attached to main job
+            self.update_state(state='PROGRESS', meta={'progress': 45, 'status': 'Creating audio asset record'})
+            main_job.update_progress(45, 'Creating audio asset record')
+            
+            from ..models.asset import AssetStatus
+            from flask import current_app
+            
+            generated_audio_asset = Asset(
+                filename=f"generated_speech_{job_id}_{timestamp}.wav",
+                original_filename=f"generated_speech_{job_id}_{timestamp}.wav",
+                file_size=len(speech_audio_data),
+                mime_type='audio/wav',
+                file_extension='.wav',
+                asset_type=AssetType.GENERATED_AUDIO,
+                status=AssetStatus.READY,
+                storage_path=audio_filename,
+                storage_bucket=current_app.config.get('MINIO_BUCKET_NAME', 'voice-clone-assets'),
                 user_id=user_id,
-                parameters={
-                    'text': script_text,
-                    'voice_asset_id': voice_asset_id,
-                    'parent_pipeline': True
-                },
-                estimated_duration=len(script_text) * 0.1
+                description=f"Generated speech for main job {job_id}: {script_text[:100]}{'...' if len(script_text) > 100 else ''}"
             )
             
-            db.session.add(tts_job)
+            db.session.add(generated_audio_asset)
             db.session.commit()
-            logger.info(f"✅ Created TTS sub-job: {tts_job.id}")
             
-            # Generate speech synchronously (blocking)
-            logger.info("🎤 Generating speech...")
-            tts_result = generate_speech.apply(
-                args=[tts_job.id, script_text, voice_asset_id]
-            )
+            # Associate audio asset with main job
+            main_job.add_asset(generated_audio_asset)
+            db.session.commit()
             
-            if tts_result.failed():
-                logger.error(f"❌ TTS generation failed: {tts_result.result}")
-                raise ValueError(f"TTS generation failed: {tts_result.result}")
+            generated_audio_asset_id = generated_audio_asset.id
+            logger.info(f"✅ TTS completed. Generated audio asset ID: {generated_audio_asset_id} attached to main job {job_id}")
             
-            tts_data = tts_result.result
-            generated_audio_asset_id = tts_data.get('generated_asset_id')
-            
-            if not generated_audio_asset_id:
-                logger.error("❌ TTS did not return generated_asset_id")
-                raise ValueError("TTS generation did not produce audio asset ID")
-            
-            logger.info(f"✅ TTS completed. Generated audio asset ID: {generated_audio_asset_id}")
+            generated_audio_asset_id = generated_audio_asset.id
+            logger.info(f"✅ TTS completed. Generated audio asset ID: {generated_audio_asset_id} attached to main job {job_id}")
             
             # Verify the audio asset exists before proceeding
             logger.info(f"🔍 Verifying audio asset {generated_audio_asset_id} exists...")
@@ -586,38 +643,10 @@ def full_generation_pipeline(self, job_id: int, portrait_asset_id, voice_asset_i
             # Step 2: Generate talking-head video using portrait and generated audio
             logger.info("🎥 Step 2: Generating talking-head video...")
             self.update_state(state='PROGRESS', meta={'progress': 50, 'status': 'Generating talking-head video'})
+            main_job.update_progress(50, 'Generating talking-head video')
             
-            # Create a sub-job for video generation
-            video_job = Job(
-                title=f"Video for Full Pipeline",
-                description=f"Generate video for full pipeline",
-                job_type=JobType.VIDEO_GENERATION,
-                priority=JobPriority.HIGH,
-                user_id=user_id,
-                parameters={
-                    'portrait_asset_id': portrait_asset_id,
-                    'audio_asset_id': generated_audio_asset_id,
-                    'parent_pipeline': True,
-                    'driven_audio_type': 'upload',
-                    'smoothed_pitch': 0.8,
-                    'smoothed_yaw': 0.8,
-                    'smoothed_roll': 0.8,
-                    'smoothed_t': 0.8
-                },
-                estimated_duration=60
-            )
-            
-            db.session.add(video_job)
-            db.session.commit()
-            logger.info(f"✅ Created video sub-job: {video_job.id}")
-            
-            # Generate video directly in this task (no separate Celery task to avoid session isolation)
+            # Generate video directly in this task (no sub-job creation)
             logger.info("🎬 Generating video directly in pipeline...")
-            
-            # Update video job status to processing
-            video_job.status = JobStatus.PROCESSING
-            db.session.commit()
-            logger.info("💾 Video job status updated to PROCESSING")
             
             # Load portrait asset
             logger.info(f"🔍 Loading portrait asset {portrait_asset_id}...")
@@ -740,7 +769,7 @@ def full_generation_pipeline(self, job_id: int, portrait_asset_id, voice_asset_i
             # Generate filename for video asset
             from datetime import datetime
             timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-            video_filename = f"generated_video_{video_job.id}_{timestamp}.mp4"
+            video_filename = f"generated_video_{job_id}_{timestamp}.mp4"
             storage_path = f"generated/videos/{user_id}/{video_filename}"
             
             # Upload to storage using file-like object
@@ -779,14 +808,15 @@ def full_generation_pipeline(self, job_id: int, portrait_asset_id, voice_asset_i
             db.session.add(video_asset)
             db.session.commit()
             
-            logger.info(f"✅ Video asset created with ID: {video_asset.id}")
-            
-            # Update video job with result
-            video_job.result_asset_id = video_asset.id
-            video_job.status = JobStatus.COMPLETED
+            # Associate video asset with main job
+            main_job.add_asset(video_asset)
             db.session.commit()
             
-            logger.info("💾 Video job status updated to COMPLETED")
+            logger.info(f"✅ Video asset created with ID: {video_asset.id}")
+            
+            # Update main job with video result
+            logger.info("💾 Updating main job with video result")
+            generated_video_asset_id = video_asset.id
             
             # Clean up temporary files
             try:
@@ -800,21 +830,16 @@ def full_generation_pipeline(self, job_id: int, portrait_asset_id, voice_asset_i
             generated_video_asset_id = video_asset.id
             logger.info(f"✅ Video generation completed. Generated video asset ID: {generated_video_asset_id}")
             
-            # Create video generation data for result
-            video_data = {
-                'video_asset_id': generated_video_asset_id,
-                'generation_time': generation_time,
-                'video_duration': 'calculated_from_audio'  # Could be calculated from audio duration
-            }
-            
             # Step 3: Finalize pipeline
             self.update_state(state='PROGRESS', meta={'progress': 95, 'status': 'Finalizing pipeline'})
+            main_job.update_progress(95, 'Finalizing pipeline')
             
             # Update main job status to completed
             main_job.status = JobStatus.COMPLETED
-            main_job.progress = 100
-            main_job.status_message = 'Full pipeline completed successfully'
-            main_job.result_asset_id = generated_video_asset_id
+            main_job.progress_percentage = 100
+            if not main_job.results:
+                main_job.results = {}
+            main_job.results['progress_message'] = 'Full pipeline completed successfully'
             db.session.commit()
             
             # Create comprehensive result
@@ -828,15 +853,13 @@ def full_generation_pipeline(self, job_id: int, portrait_asset_id, voice_asset_i
                     'script_preview': script_text[:100] + '...' if len(script_text) > 100 else script_text
                 },
                 'intermediate': {
-                    'tts_job_id': tts_job.id,
                     'audio_asset_id': generated_audio_asset_id,
-                    'audio_generation_time': tts_data.get('generation_time', 'unknown')
+                    'audio_generation_method': 'inline_tts'
                 },
                 'output': {
-                    'video_job_id': video_job.id,
                     'video_asset_id': generated_video_asset_id,
-                    'video_generation_time': video_data.get('generation_time', 'unknown'),
-                    'total_duration': video_data.get('video_duration', 'unknown')
+                    'video_generation_time': generation_time,
+                    'final_result_asset_id': generated_video_asset_id
                 },
                 'quality_metrics': {
                     'voice_similarity': 'estimated_high',  # Could be calculated
