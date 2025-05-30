@@ -1,5 +1,5 @@
 """
-KDTalker client for portrait-to-video generation.
+KDTalker client for portrait-to-video generation..
 
 This client interfaces with KDTalker's remote Gradio service on Hugging Face Spaces
 to generate talking-head videos from portrait images and audio files.
