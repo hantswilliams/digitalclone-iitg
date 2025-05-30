@@ -18,6 +18,7 @@ const CreateAudioPage = () => {
   const [audioPreview, setAudioPreview] = useState(null);
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+  const [currentScriptJobId, setCurrentScriptJobId] = useState(null);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
@@ -30,10 +31,138 @@ const CreateAudioPage = () => {
   
   const audioRef = useRef(null);
   const fileInputRef = useRef(null);
+  const pollingIntervalRef = useRef(null);
+
+  // Job polling function for script generation
+  const startJobPolling = (jobId) => {
+    // Clear any existing polling
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
+    
+    setCurrentScriptJobId(jobId);
+    console.log(`🔄 Starting to poll job ${jobId} for completion...`);
+    
+    pollingIntervalRef.current = setInterval(async () => {
+      try {
+        console.log(`🔍 Polling job ${jobId} status...`);
+        const response = await jobService.pollJobStatus(jobId);
+        console.log(`📊 Full API response for job ${jobId}:`, response);
+        
+        const jobData = response.job; // API returns {job: {...}}
+        console.log(`📊 Job ${jobId} status:`, jobData?.status);
+        
+        if (jobData?.status === 'completed') {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+          setCurrentScriptJobId(null);
+          console.log(`✅ Job ${jobId} completed successfully!`);
+          
+          // Find the script asset from the job's assets
+          if (jobData.asset_ids && jobData.asset_ids.length > 0) {
+            try {
+              // Get the last asset (should be the newly generated script)
+              const assetId = jobData.asset_ids[jobData.asset_ids.length - 1];
+              console.log(`📄 Fetching script asset ${assetId}...`);
+              
+              const asset = await assetService.getAsset(assetId);
+              console.log(`📄 Script asset fetched:`, asset);
+              
+              if (asset && asset.download_url) {
+                try {
+                  // Fetch the script content from the download URL
+                  console.log(`📥 Downloading script content from:`, asset.download_url);
+                  const contentResponse = await fetch(asset.download_url);
+                  
+                  if (!contentResponse.ok) {
+                    throw new Error(`Failed to download script: ${contentResponse.status} ${contentResponse.statusText}`);
+                  }
+                  
+                  const scriptContent = await contentResponse.text();
+                  console.log(`📄 Script content downloaded, length: ${scriptContent.length} characters`);
+                  
+                  setTextInput(scriptContent);
+                  setSuccess('Script generated successfully and loaded into text area!');
+                  setIsGeneratingScript(false);
+                  
+                  // Auto-dismiss success message
+                  setTimeout(() => setSuccess(null), 5000);
+                } catch (downloadError) {
+                  console.error('❌ Error downloading script content:', downloadError);
+                  setError('Script was generated but content could not be downloaded');
+                  setIsGeneratingScript(false);
+                }
+              } else {
+                console.error('❌ Script asset has no download URL');
+                setError('Script was generated but download URL is not available');
+                setIsGeneratingScript(false);
+              }
+            } catch (assetError) {
+              console.error('❌ Error fetching script asset:', assetError);
+              setError('Script was generated but could not be loaded');
+              setIsGeneratingScript(false);
+            }
+          } else {
+            console.error('❌ No assets found for completed job');
+            setError('Script generation completed but no script was found');
+            setIsGeneratingScript(false);
+          }
+        } else if (jobData?.status === 'failed') {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+          setCurrentScriptJobId(null);
+          console.error(`❌ Job ${jobId} failed:`, jobData.error_info || 'Unknown error');
+          setError(`Script generation failed: ${jobData.error_info || 'Unknown error'}`);
+          setIsGeneratingScript(false);
+        } else if (jobData?.status === 'cancelled') {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+          setCurrentScriptJobId(null);
+          console.log(`⚠️ Job ${jobId} was cancelled`);
+          setError('Script generation was cancelled');
+          setIsGeneratingScript(false);
+        }
+        // For pending/running status, continue polling
+      } catch (pollError) {
+        console.error(`❌ Error polling job ${jobId}:`, pollError);
+        // Don't clear interval on poll errors, might be temporary network issues
+        // But if it's a 404, the job might not exist
+        if (pollError.response?.status === 404) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+          setCurrentScriptJobId(null);
+          setError('Script generation job not found');
+          setIsGeneratingScript(false);
+        }
+      }
+    }, 2000); // Poll every 2 seconds
+    
+    // Set a timeout to stop polling after 5 minutes
+    setTimeout(() => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+        if (currentScriptJobId === jobId) {
+          setCurrentScriptJobId(null);
+          setError('Script generation timed out. Please try again.');
+          setIsGeneratingScript(false);
+        }
+      }
+    }, 300000); // 5 minutes
+  };
 
   // Load existing voice samples on component mount
   useEffect(() => {
     loadExistingVoiceSamples();
+  }, []);
+
+  // Cleanup polling on component unmount
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
   }, []);
 
   const loadExistingVoiceSamples = async () => {
@@ -123,14 +252,26 @@ const CreateAudioPage = () => {
       // Call the LLM script generation endpoint
       const response = await generationService.generateScript({
         prompt: textInput,
-        length: 'medium', // Can be made configurable
-        style: 'educational' // Can be made configurable
+        topic: '', // Optional topic
+        target_audience: 'general', // Optional target audience
+        duration_minutes: 3, // Convert from length to duration_minutes
+        style: 'educational', // Style is fine
+        additional_context: '', // Optional additional context
+        priority: 'normal', // Optional priority
+        title: 'Generated Script', // Optional title
+        description: `Script generated from prompt: ${textInput.substring(0, 100)}...` // Optional description
       });
 
-      if (response.script) {
-        setTextInput(response.script);
-        setSuccess('Script generated successfully!');
-        setTimeout(() => setSuccess(null), 3000);
+      console.log('📄 Script generation job created:', response);
+      
+      if (response.job_id) {
+        setSuccess('Script generation started. Please wait...');
+        console.log(`Script generation job ${response.job_id} started with task ${response.task_id}`);
+        
+        // Start polling for job completion
+        startJobPolling(response.job_id);
+      } else {
+        setError('Failed to start script generation');
       }
     } catch (err) {
       console.error('❌ Error generating script:', err);

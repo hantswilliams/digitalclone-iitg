@@ -59,6 +59,7 @@ def generate_script(self, job_id: int, prompt: str, **kwargs):
             )
             
             # Initialize Llama client
+            logger.info(f"Initializing Llama client for job {job_id}")
             llama_config = LlamaConfig()
             llama_client = create_llama_client(llama_config)
             
@@ -71,6 +72,11 @@ def generate_script(self, job_id: int, prompt: str, **kwargs):
                 meta={'progress': 20, 'message': 'Generating script content'}
             )
             
+            # Log generation parameters
+            logger.info(f"Starting script generation with parameters: "
+                       f"prompt_length={len(prompt)}, topic={kwargs.get('topic')}, "
+                       f"audience={kwargs.get('target_audience')}, duration={kwargs.get('duration_minutes')}")
+            
             # Generate script
             generation_result = llama_client.generate_script(
                 prompt=prompt,
@@ -81,8 +87,12 @@ def generate_script(self, job_id: int, prompt: str, **kwargs):
                 additional_context=kwargs.get('additional_context')
             )
             
+            logger.info(f"Script generation completed: success={generation_result.get('success')}")
+            
             if not generation_result.get('success'):
-                raise RuntimeError(f"Script generation failed: {generation_result.get('error')}")
+                error_msg = generation_result.get('error', 'Unknown error')
+                logger.error(f"Script generation failed for job {job_id}: {error_msg}")
+                raise RuntimeError(f"Script generation failed: {error_msg}")
             
             # Update progress
             job.update_progress(70, "Saving generated script")
@@ -216,12 +226,14 @@ def validate_llm_service(self):
         Dict with service validation results
     """
     try:
+        logger.info("Starting LLM service validation")
         self.update_state(
             state='PROGRESS',
             meta={'progress': 0, 'message': 'Initializing LLM service validation'}
         )
         
         # Create client and test connection
+        logger.debug("Creating Llama client for validation")
         llama_config = LlamaConfig()
         llama_client = create_llama_client(llama_config)
         
@@ -231,7 +243,10 @@ def validate_llm_service(self):
         )
         
         # Perform health check
+        logger.debug("Performing health check")
         health_result = llama_client.health_check()
+        
+        logger.info(f"LLM service health check result: {health_result['status']}")
         
         self.update_state(
             state='PROGRESS',
@@ -241,13 +256,14 @@ def validate_llm_service(self):
         return {
             'success': True,
             'status': health_result['status'],
-            'service': 'llama_4',
-            'space_name': llama_config.space_name,
+            'service': 'llama_3_1',
+            'model_name': llama_config.model_name,
+            'provider': llama_config.provider,
             'details': health_result
         }
         
     except Exception as e:
-        logger.error(f"LLM service validation failed: {e}")
+        logger.error(f"LLM service validation failed: {e}", exc_info=True)
         
         self.update_state(
             state='FAILURE',
@@ -257,6 +273,6 @@ def validate_llm_service(self):
         return {
             'success': False,
             'status': 'unhealthy',
-            'service': 'llama_4',
+            'service': 'llama_3_1',
             'error': str(e)
         }

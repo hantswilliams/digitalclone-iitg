@@ -74,9 +74,15 @@ class ScriptRequestSchema(Schema):
 def generate_script_endpoint():
     """Generate script using LLM service"""
     try:
+        # Log the raw request data for debugging
+        raw_data = request.get_json() or {}
+        current_app.logger.info(f"Script generation request data: {raw_data}")
+        
         # Validate request data
         schema = ScriptRequestSchema()
-        data = schema.load(request.get_json() or {})
+        data = schema.load(raw_data)
+        
+        current_app.logger.info(f"Validated script generation data: {data}")
         
         # Get current user
         current_user_id = get_jwt_identity()
@@ -129,9 +135,11 @@ def generate_script_endpoint():
         }), 202
         
     except ValidationError as e:
+        current_app.logger.error(f"Script generation validation error: {e.messages}")
+        current_app.logger.error(f"Original request data: {request.get_json()}")
         return jsonify({'error': 'Validation failed', 'details': e.messages}), 400
     except Exception as e:
-        current_app.logger.error(f"Script generation error: {str(e)}")
+        current_app.logger.error(f"Script generation error: {str(e)}", exc_info=True)
         return jsonify({'error': 'Internal server error'}), 500
 
 

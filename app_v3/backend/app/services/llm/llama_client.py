@@ -1,5 +1,5 @@
 """
-Llama-4 LLM client for script generation using Hugging Face Spaces
+Llama-3.1 LLM client for script generation using HuggingFace Inference API
 """
 import logging
 import time
@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, Any, Union
 from dataclasses import dataclass
 from pathlib import Path
 
-from gradio_client import Client
+from huggingface_hub import InferenceClient
 from flask import current_app
 
 logger = logging.getLogger(__name__)
@@ -15,12 +15,12 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class LlamaConfig:
-    """Configuration for Llama-4 script generation"""
-    space_name: str = "openfree/Llama-4-Scout-17B-Research"
+    """Configuration for Llama-3.1 script generation"""
+    model_name: str = "meta-llama/Llama-3.1-8B-Instruct"
+    provider: str = "novita"
     timeout: int = 300  # 5 minutes
     max_tokens: int = 2000
     temperature: float = 0.7
-    use_deep_research: bool = False
     
     def __post_init__(self):
         """Validate configuration after initialization"""
@@ -34,9 +34,9 @@ class LlamaConfig:
 
 class LlamaClient:
     """
-    Client for interacting with Llama-4 on Hugging Face Spaces for script generation.
+    Client for interacting with Llama-3.1 using HuggingFace Inference API for script generation.
     
-    This client provides script generation capabilities using the hosted Llama-4 model.
+    This client provides script generation capabilities using the hosted Llama-3.1 model.
     """
     
     def __init__(self, config: Optional[LlamaConfig] = None):
@@ -62,18 +62,26 @@ class LlamaClient:
             return os.environ.get(key, default)
         return default
     
-    def _get_client(self) -> Client:
-        """Get or create the Gradio client"""
+    def _get_client(self) -> InferenceClient:
+        """Get or create the HuggingFace Inference client"""
         if self._client is None:
-            space_name = self._get_config_value('LLAMA_SPACE', self.config.space_name)
-            logger.info(f"Initializing Llama client with space: {space_name}")
+            # Try HF_API_TOKEN first (consistent with config), then HF_API_KEY as fallback
+            api_key = self._get_config_value('HF_API_TOKEN') or self._get_config_value('HF_API_KEY')
+            if not api_key:
+                raise ValueError("HF_API_TOKEN not found in environment variables or config")
+            
+            logger.info(f"Initializing Llama client with model: {self.config.model_name}")
+            logger.debug(f"Using provider: {self.config.provider}")
             
             try:
-                self._client = Client(space_name)
-                logger.info(f"Successfully connected to {space_name}")
+                self._client = InferenceClient(
+                    provider=self.config.provider,
+                    api_key=api_key,
+                )
+                logger.info(f"Successfully connected to HuggingFace Inference API")
             except Exception as e:
                 logger.error(f"Failed to initialize Llama client: {e}")
-                raise RuntimeError(f"Cannot connect to Llama service: {e}")
+                raise RuntimeError(f"Cannot connect to HuggingFace Inference API: {e}")
         
         return self._client
     
@@ -94,19 +102,29 @@ class LlamaClient:
             client = self._get_client()
             
             # Test with a simple prompt
-            test_result = client.predict(
-                message="Hello! Please respond with 'OK' if you can process this request.",
-                history=[],
-                use_deep_research=False,
-                api_name="/query_deepseek_streaming"
+            logger.debug("Starting health check with test prompt")
+            test_completion = client.chat.completions.create(
+                model=self.config.model_name,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": "Please respond with 'OK' if you can process this request."
+                    }
+                ],
+                max_tokens=10,
+                temperature=0.1
             )
+            
+            test_response = test_completion.choices[0].message.content if test_completion.choices else "No response"
             
             self._last_health_check = current_time
             
+            logger.info("Health check successful")
             return {
                 'status': 'healthy',
-                'space_name': self.config.space_name,
-                'test_response': str(test_result)[:100] + '...' if len(str(test_result)) > 100 else str(test_result),
+                'model_name': self.config.model_name,
+                'provider': self.config.provider,
+                'test_response': str(test_response)[:100] + '...' if len(str(test_response)) > 100 else str(test_response),
                 'timestamp': current_time
             }
             
@@ -148,26 +166,39 @@ class LlamaClient:
             )
             
             logger.info(f"Generating script with prompt length: {len(full_prompt)} characters")
+            logger.debug(f"Using model: {self.config.model_name}")
+            logger.debug(f"Temperature: {self.config.temperature}, Max tokens: {self.config.max_tokens}")
             
             client = self._get_client()
             
-            # Generate script using Llama-4
+            # Generate script using Llama-3.1
             start_time = time.time()
             
-            result = client.predict(
-                message=full_prompt,
-                history=[],
-                use_deep_research=self.config.use_deep_research,
-                api_name="/query_deepseek_streaming"
+            logger.debug("Starting script generation API call")
+            completion = client.chat.completions.create(
+                model=self.config.model_name,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": full_prompt
+                    }
+                ],
+                max_tokens=self.config.max_tokens,
+                temperature=self.config.temperature
             )
             
             generation_time = time.time() - start_time
+            logger.info(f"Script generation completed in {generation_time:.2f} seconds")
             
             # Extract and format the result
-            script_text = self._extract_script_from_result(result)
+            script_text = self._extract_script_from_result(completion)
+            logger.debug(f"Generated script length: {len(script_text)} characters")
             
             # Analyze the generated script
             script_analysis = self._analyze_script(script_text)
+            
+            logger.info(f"Script analysis: {script_analysis['word_count']} words, "
+                       f"{script_analysis['estimated_duration']} min estimated duration")
             
             return {
                 'script': script_text,
@@ -180,14 +211,14 @@ class LlamaClient:
                     'generation_time': round(generation_time, 2),
                     'word_count': script_analysis['word_count'],
                     'estimated_duration': script_analysis['estimated_duration'],
-                    'model': 'Llama-4-Scout-17B-Research'
+                    'model': self.config.model_name
                 },
                 'analysis': script_analysis,
                 'success': True
             }
             
         except Exception as e:
-            logger.error(f"Script generation failed: {e}")
+            logger.error(f"Script generation failed: {e}", exc_info=True)
             return {
                 'script': None,
                 'error': str(e),
@@ -205,9 +236,14 @@ class LlamaClient:
     ) -> str:
         """Build a comprehensive prompt for script generation"""
         
+        logger.debug(f"Building script prompt with parameters: topic={topic}, "
+                    f"audience={target_audience}, duration={duration_minutes}, style={style}")
+        
         # Start with system instruction
-        system_prompt = "You are a professional script writer specializing in educational and presentation content. "
-        system_prompt += "Generate a well-structured, engaging script that is suitable for a talking-head video presentation.\n\n"
+        system_prompt = "You are a professional content writer specializing in spoken content for video presentations. "
+        system_prompt += "Generate only the exact words that will be spoken by a presenter in a talking-head video. "
+        system_prompt += "Do not include any titles, headers, production notes, background music suggestions, or formatting. "
+        system_prompt += "Focus solely on creating natural, conversational spoken content.\n\n"
         
         # Add specific requirements
         requirements = []
@@ -239,26 +275,41 @@ class LlamaClient:
         full_prompt += "PROMPT:\n"
         full_prompt += prompt
         full_prompt += "\n\n"
-        full_prompt += "Please generate a complete script that:\n"
-        full_prompt += "1. Has a clear introduction, main content, and conclusion\n"
-        full_prompt += "2. Is engaging and appropriate for video presentation\n"
-        full_prompt += "3. Uses natural, conversational language suitable for speaking\n"
-        full_prompt += "4. Includes smooth transitions between topics\n"
-        full_prompt += "5. Is formatted clearly with paragraphs or sections\n\n"
-        full_prompt += "SCRIPT:"
+        full_prompt += "Please generate ONLY the spoken words that a presenter will say in a video. The output should be:\n"
+        full_prompt += "1. Pure spoken content without any titles, headers, or section labels\n"
+        full_prompt += "2. Natural, conversational language as if speaking directly to the audience\n"
+        full_prompt += "3. No production notes, stage directions, or technical instructions\n"
+        full_prompt += "4. No references to background music, editing, or visual elements\n"
+        full_prompt += "5. Smooth, natural flow suitable for voice cloning and text-to-speech\n"
+        full_prompt += "6. Content that starts speaking immediately without introductory titles\n\n"
+        full_prompt += "SPOKEN CONTENT:"
+        
+        logger.debug(f"Built prompt with {len(requirements)} requirements, total length: {len(full_prompt)} characters")
         
         return full_prompt
     
-    def _extract_script_from_result(self, result: Any) -> str:
-        """Extract the script text from the Llama result"""
-        if isinstance(result, str):
-            return result.strip()
-        elif isinstance(result, (list, tuple)) and len(result) > 0:
-            return str(result[0]).strip()
-        elif hasattr(result, 'text'):
-            return result.text.strip()
-        else:
-            return str(result).strip()
+    def _extract_script_from_result(self, completion: Any) -> str:
+        """Extract the script text from the HuggingFace completion result"""
+        try:
+            if hasattr(completion, 'choices') and len(completion.choices) > 0:
+                choice = completion.choices[0]
+                if hasattr(choice, 'message') and hasattr(choice.message, 'content'):
+                    script_text = choice.message.content.strip()
+                    logger.debug(f"Extracted script from completion: {len(script_text)} characters")
+                    return script_text
+                elif hasattr(choice, 'text'):
+                    script_text = choice.text.strip()
+                    logger.debug(f"Extracted script from choice.text: {len(script_text)} characters")
+                    return script_text
+            
+            # Fallback to string conversion
+            script_text = str(completion).strip()
+            logger.warning(f"Using fallback extraction method: {len(script_text)} characters")
+            return script_text
+            
+        except Exception as e:
+            logger.error(f"Error extracting script from result: {e}")
+            return str(completion).strip()
     
     def _analyze_script(self, script: str) -> Dict[str, Any]:
         """Analyze the generated script for metadata"""
@@ -272,13 +323,17 @@ class LlamaClient:
         sentences = script.count('.') + script.count('!') + script.count('?')
         paragraphs = len([p for p in script.split('\n\n') if p.strip()])
         
-        return {
+        analysis = {
             'word_count': word_count,
             'estimated_duration': estimated_duration,
             'sentence_count': sentences,
             'paragraph_count': paragraphs,
             'character_count': len(script)
         }
+        
+        logger.debug(f"Script analysis complete: {analysis}")
+        
+        return analysis
 
 
 def create_llama_client(config: Optional[LlamaConfig] = None) -> LlamaClient:

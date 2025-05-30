@@ -27,6 +27,7 @@ httpx==0.25.0
 
 # AI/ML integrations
 gradio-client==0.6.1
+huggingface_hub>=0.20.0
 openai==0.28.1
 numpy==2.2.6
 zyphra
