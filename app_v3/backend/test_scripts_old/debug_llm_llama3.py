@@ -2,7 +2,7 @@ from huggingface_hub import InferenceClient
 
 client = InferenceClient(
     provider="novita",
-    api_key="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",
+    api_key="",
 )
 
 completion = client.chat.completions.create(
