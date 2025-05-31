@@ -308,7 +308,7 @@ const DashboardPage = () => {
           </div>
           <div className="px-6 py-4 space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">KdTalker Service</span>
+              <span className="text-sm font-medium text-gray-700">KdTalker Service (HuggingFace)</span>
               <div className="flex items-center">
                 <div className={`w-2 h-2 rounded-full mr-2 ${systemStatus.kdTalker ? 'bg-green-400' : 'bg-red-400'}`}></div>
                 <span className={`text-sm ${systemStatus.kdTalker ? 'text-green-600' : 'text-red-600'}`}>
@@ -318,7 +318,7 @@ const DashboardPage = () => {
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">IndexTTS Service</span>
+              <span className="text-sm font-medium text-gray-700">IndexTTS Service (HuggingFace)</span>
               <div className="flex items-center">
                 <div className={`w-2 h-2 rounded-full mr-2 ${systemStatus.indexTTS ? 'bg-green-400' : 'bg-red-400'}`}></div>
                 <span className={`text-sm ${systemStatus.indexTTS ? 'text-green-600' : 'text-red-600'}`}>
@@ -328,7 +328,7 @@ const DashboardPage = () => {
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">Worker Queue</span>
+              <span className="text-sm font-medium text-gray-700">Worker Queue (Redis and Celery)</span>
               <div className="flex items-center">
                 <div className={`w-2 h-2 rounded-full mr-2 ${systemStatus.celeryWorker ? 'bg-green-400' : 'bg-red-400'}`}></div>
                 <span className={`text-sm ${systemStatus.celeryWorker ? 'text-green-600' : 'text-red-600'}`}>
