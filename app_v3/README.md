@@ -2,7 +2,7 @@
 
 > 🎓 An AI-powered platform that transforms static portraits and voice samples into dynamic lecture videos with synchronized lip movements and natural speech.
 
-## 🌟 Overview
+## 🌟 Overview.
 
 This application enables medical faculty and educators to create personalized lecture videos by simply uploading:
 - **📸 A portrait photo** - Any clear headshot image
