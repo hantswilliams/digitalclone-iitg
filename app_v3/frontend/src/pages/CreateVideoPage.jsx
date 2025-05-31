@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { assetService } from '../services/assetService';
 import { jobService } from '../services/jobService';
-import { ChevronLeftIcon, ChevronRightIcon, PlayIcon } from '@heroicons/react/24/outline';
+import { useScriptGeneration } from '../hooks/useScriptGeneration';
+import { ChevronLeftIcon, ChevronRightIcon, PlayIcon, SparklesIcon } from '@heroicons/react/24/outline';
 
 const WizardSteps = ({ currentStep, steps }) => {
   return (
@@ -171,7 +172,20 @@ const AssetSelector = ({ assetType, selectedAsset, onSelect, label, description 
 const ScriptInput = ({ script, onScriptChange, selectedVoice }) => {
   const [scriptAssets, setScriptAssets] = useState([]);
   const [loadingAssets, setLoadingAssets] = useState(false);
-  const [inputMode, setInputMode] = useState('write'); // 'write' or 'select'
+  const [inputMode, setInputMode] = useState('write'); // 'write', 'select', or 'generate'
+  const [llmPrompt, setLlmPrompt] = useState('');
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+
+  // Use shared script generation hook
+  const { generateScript, isGenerating, generationError, clearError } = useScriptGeneration();
+
+  // Handle generation error from shared hook
+  useEffect(() => {
+    if (generationError) {
+      setError(generationError);
+    }
+  }, [generationError]);
 
   // Load existing script assets
   useEffect(() => {
@@ -201,7 +215,39 @@ const ScriptInput = ({ script, onScriptChange, selectedVoice }) => {
       setInputMode('write'); // Switch to write mode after loading
     } catch (err) {
       console.error('Error loading script content:', err);
-      alert('Failed to load script content');
+      setError('Failed to load script content');
+    }
+  };
+
+  const handleGenerateScript = async () => {
+    if (!llmPrompt.trim()) {
+      setError('Please provide some context or topic for script generation');
+      return;
+    }
+
+    setError(null);
+    setSuccess(null);
+    clearError(); // Clear any previous generation errors
+
+    try {
+      console.log('🎬 Generating script via LLM...');
+      
+      // Use shared script generation hook
+      const result = await generateScript(llmPrompt, 3); // 3 minutes duration
+      
+      if (result.success) {
+        onScriptChange(result.script);
+        setSuccess('Script generated successfully and loaded!');
+        setInputMode('write'); // Switch to write mode to show the generated script
+        
+        // Auto-dismiss success message
+        setTimeout(() => setSuccess(null), 5000);
+      } else {
+        setError(result.error || 'Failed to generate script');
+      }
+    } catch (err) {
+      console.error('❌ Error generating script:', err);
+      setError('Failed to generate script. Please try again.');
     }
   };
 
@@ -223,6 +269,16 @@ const ScriptInput = ({ script, onScriptChange, selectedVoice }) => {
           }`}
         >
           Write New Script
+        </button>
+        <button
+          onClick={() => setInputMode('generate')}
+          className={`pb-2 px-1 text-sm font-medium border-b-2 ${
+            inputMode === 'generate'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Generate Script
         </button>
         <button
           onClick={() => setInputMode('select')}
@@ -275,6 +331,65 @@ const ScriptInput = ({ script, onScriptChange, selectedVoice }) => {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {inputMode === 'generate' && (
+        <div className="space-y-4">
+          {/* Error/Success Messages */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-3">
+              <p className="text-red-800 text-sm">{error}</p>
+            </div>
+          )}
+          
+          {success && (
+            <div className="bg-green-50 border border-green-200 rounded-md p-3">
+              <p className="text-green-800 text-sm">{success}</p>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              What would you like your script to be about?
+            </label>
+            <textarea
+              value={llmPrompt}
+              onChange={(e) => setLlmPrompt(e.target.value)}
+              placeholder="E.g., 'Explain the benefits of renewable energy' or 'Introduce our new product launch'"
+              rows={4}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Provide a topic, theme, or context for the AI to generate your script
+            </p>
+          </div>
+
+          <button
+            onClick={handleGenerateScript}
+            disabled={isGenerating || !llmPrompt.trim()}
+            className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isGenerating ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Generating Script...
+              </>
+            ) : (
+              <>
+                <SparklesIcon className="h-4 w-4 mr-2" />
+                Generate Script with AI
+              </>
+            )}
+          </button>
+
+          {script && (
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <p className="text-blue-800 text-sm">
+                ✅ Script generated! Switch to "Write New Script" tab to view and edit.
+              </p>
             </div>
           )}
         </div>
