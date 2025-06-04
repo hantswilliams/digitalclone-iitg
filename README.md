@@ -1,4 +1,4 @@
-# Digitalclone-iitg.
+# Digitalclone-iitg
 
 
 ## Updates: May 21, 2025
