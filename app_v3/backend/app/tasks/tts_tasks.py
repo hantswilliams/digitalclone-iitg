@@ -2,6 +2,7 @@
 Text-to-speech Celery tasks
 """
 import os
+import time
 import logging
 import subprocess
 from io import BytesIO
@@ -43,11 +44,11 @@ def generate_speech(self, job_id: int, text: str, voice_asset_id: int):
             if not job:
                 raise ValueError(f"Job {job_id} not found")
             
-            # Update job status to processing when task starts
-            job.status = JobStatus.PROCESSING
+            # Update job status to processing when task starts with timing
+            job.mark_started()
             db.session.commit()
             
-            logger.info(f"Started TTS generation for job {job_id}, updated status to PROCESSING")
+            logger.info(f"Started TTS generation for job {job_id}, updated status to PROCESSING with timing")
             
             # Update task progress
             self.update_state(state='PROGRESS', meta={'progress': 5, 'status': 'Loading voice asset'})
@@ -81,6 +82,18 @@ def generate_speech(self, job_id: int, text: str, voice_asset_id: int):
                 text=text,
                 speaker_audio=voice_audio_data
             )
+            
+            # Capture IndexTTS metadata including hardware information
+            logger.info(f"📋 Capturing IndexTTS service metadata...")
+            try:
+                indextts_metadata = indextts_client.get_space_metadata()
+                logger.info(f"✅ IndexTTS metadata captured: {indextts_metadata.get('model_name', 'Unknown')}")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to capture IndexTTS metadata: {str(e)}")
+                indextts_metadata = {
+                    "error": str(e),
+                    "captured_at": time.time()
+                }
             
             # Store the generated audio in MinIO
             self.update_state(state='PROGRESS', meta={'progress': 60, 'status': 'Storing generated speech'})
@@ -162,9 +175,17 @@ def generate_speech(self, job_id: int, text: str, voice_asset_id: int):
                 'generated_asset_id': asset.id  # Include the asset ID in the result
             }
             
-            # Update job with final progress and mark as completed
+            # Store service metadata
+            service_metadata = {
+                'indextts': indextts_metadata,
+                'generation_timestamp': time.time(),
+                'task_id': current_task.request.id
+            }
+            job.update_service_metadata(service_metadata)
+            
+            # Update job with final progress and mark as completed with timing
             job.update_progress(100, 'Speech generation completed successfully')
-            job.status = JobStatus.COMPLETED
+            job.mark_completed(result)
             db.session.commit()
             
             logger.info(f"Successfully generated speech for job {job_id}: {len(speech_audio_data)} bytes audio, {len(wav_data)} bytes WAV")
@@ -175,8 +196,14 @@ def generate_speech(self, job_id: int, text: str, voice_asset_id: int):
             logger.error(f"Job {job_id} - {error_msg}")
             
             if job:
+                # Mark as failed with timing and error info
+                error_info = {
+                    'error_message': error_msg,
+                    'task_id': current_task.request.id,
+                    'failed_at': time.time()
+                }
                 job.update_progress(0, error_msg)
-                job.status = JobStatus.FAILED
+                job.mark_failed(error_info)
                 job.error_message = error_msg
                 db.session.commit()
             

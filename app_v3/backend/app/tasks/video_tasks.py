@@ -3,6 +3,7 @@ Video generation Celery tasks
 """
 import os
 import logging
+import time
 from pathlib import Path
 from celery import current_task
 from ..extensions import celery, db
@@ -51,12 +52,12 @@ def generate_video(self, job_id: int, portrait_asset_id: int, audio_asset_id: in
             logger.info(f"✅ Job loaded: {job.title} (type: {job.job_type})")
             logger.info(f"📋 Job parameters: {job.parameters}")
             
-            # Update job status
-            job.status = JobStatus.PROCESSING
+            # Update job status and mark as started with timing
+            job.mark_started()
             job.progress = 5
             job.status_message = 'Initializing video generation'
             db.session.commit()
-            logger.info(f"💾 Job status updated to PROCESSING")
+            logger.info(f"💾 Job status updated to PROCESSING with timing started")
             
             # Get assets
             from ..models.asset import AssetType, AssetStatus
@@ -192,6 +193,18 @@ def generate_video(self, job_id: int, portrait_asset_id: int, audio_asset_id: in
         logger.info(f"✅ Video generation completed in {generation_duration:.2f} seconds")
         logger.info(f"📊 Generation result: {generation_result}")
         
+        # Capture KDTalker metadata including hardware information
+        logger.info(f"📋 Capturing KDTalker service metadata...")
+        try:
+            kdtalker_metadata = kdtalker_client.get_space_metadata()
+            logger.info(f"✅ KDTalker metadata captured: {kdtalker_metadata.get('model_name', 'Unknown')}")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to capture KDTalker metadata: {str(e)}")
+            kdtalker_metadata = {
+                "error": str(e),
+                "captured_at": time.time()
+            }
+        
         # Check if output file was created
         if not output_local_path.exists():
             logger.error(f"❌ Output video file not created: {output_local_path}")
@@ -309,13 +322,22 @@ def generate_video(self, job_id: int, portrait_asset_id: int, audio_asset_id: in
             'generated_asset_id': asset.id  # Include the asset ID in the result
         }
         
-        # Update job in database
+        # Update job in database with metadata and timing
         with celery.flask_app.app_context():
             job = Job.query.get(job_id)
-            job.status = JobStatus.COMPLETED
+            
+            # Store service metadata
+            service_metadata = {
+                'kdtalker': kdtalker_metadata,
+                'generation_timestamp': time.time(),
+                'task_id': current_task.request.id
+            }
+            job.update_service_metadata(service_metadata)
+            
+            # Mark as completed with timing and results
+            job.mark_completed(result)
             job.progress = 100
             job.status_message = 'Video generation completed successfully'
-            job.result_data = result
             db.session.commit()
         
         logger.info(f"🎉 Video generation completed successfully: {storage_path}")
@@ -329,11 +351,17 @@ def generate_video(self, job_id: int, portrait_asset_id: int, audio_asset_id: in
             with celery.flask_app.app_context():
                 job = Job.query.get(job_id)
                 if job:
-                    job.status = JobStatus.FAILED
+                    # Mark as failed with timing and error info
+                    error_info = {
+                        'error_message': str(exc),
+                        'task_id': current_task.request.id,
+                        'failed_at': time.time()
+                    }
+                    job.mark_failed(error_info)
                     job.status_message = str(exc)
                     job.progress = 0
                     db.session.commit()
-                    logger.info(f"📉 Job status updated to FAILED")
+                    logger.info(f"📉 Job status updated to FAILED with timing")
         except Exception as db_exc:
             logger.error(f"❌ Failed to update job status in database: {db_exc}")
         
@@ -502,13 +530,14 @@ def full_generation_pipeline(self, job_id: int, portrait_asset_id, voice_asset_i
             if not main_job:
                 raise ValueError(f"Main job {job_id} not found")
             
-            main_job.status = JobStatus.PROCESSING
+            # Mark main job as started with timing
+            main_job.mark_started()
             main_job.progress_percentage = 5
             if not main_job.results:
                 main_job.results = {}
             main_job.results['progress_message'] = 'Starting full pipeline'
             db.session.commit()
-            logger.info(f"✅ Updated main job {job_id} status to PROCESSING")
+            logger.info(f"✅ Updated main job {job_id} status to PROCESSING with timing")
             
             # Step 1: Generate TTS audio from script using voice clone
             logger.info("🗣️ Step 1: Generating TTS audio from script...")
@@ -551,6 +580,18 @@ def full_generation_pipeline(self, job_id: int, portrait_asset_id, voice_asset_i
                 text=script_text,
                 speaker_audio=voice_audio_data
             )
+            
+            # Capture IndexTTS metadata including hardware information
+            logger.info(f"📋 Capturing IndexTTS service metadata...")
+            try:
+                indextts_metadata = indextts_client.get_space_metadata()
+                logger.info(f"✅ IndexTTS metadata captured: {indextts_metadata.get('model_name', 'Unknown')}")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to capture IndexTTS metadata: {str(e)}")
+                indextts_metadata = {
+                    "error": str(e),
+                    "captured_at": time.time()
+                }
             
             # Store the generated audio
             self.update_state(state='PROGRESS', meta={'progress': 40, 'status': 'Storing generated speech'})
@@ -743,6 +784,18 @@ def full_generation_pipeline(self, job_id: int, portrait_asset_id, voice_asset_i
             generation_time = time.time() - start_time
             logger.info(f"✅ KDTalker generation completed in {generation_time:.2f}s")
             
+            # Capture KDTalker metadata including hardware information
+            logger.info(f"📋 Capturing KDTalker service metadata...")
+            try:
+                kdtalker_metadata = kdtalker_client.get_space_metadata()
+                logger.info(f"✅ KDTalker metadata captured: {kdtalker_metadata.get('model_name', 'Unknown')}")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to capture KDTalker metadata: {str(e)}")
+                kdtalker_metadata = {
+                    "error": str(e),
+                    "captured_at": time.time()
+                }
+            
             # Get the output path from the result
             if not result or 'video_path' not in result:
                 logger.error(f"❌ KDTalker result: {result}")
@@ -834,8 +887,18 @@ def full_generation_pipeline(self, job_id: int, portrait_asset_id, voice_asset_i
             self.update_state(state='PROGRESS', meta={'progress': 95, 'status': 'Finalizing pipeline'})
             main_job.update_progress(95, 'Finalizing pipeline')
             
-            # Update main job status to completed
-            main_job.status = JobStatus.COMPLETED
+            # Store complete service metadata for the full pipeline
+            service_metadata = {
+                'indextts': indextts_metadata,
+                'kdtalker': kdtalker_metadata,
+                'pipeline_type': 'full_generation',
+                'generation_timestamp': time.time(),
+                'task_id': current_task.request.id
+            }
+            main_job.update_service_metadata(service_metadata)
+            
+            # Update main job status to completed with timing
+            main_job.mark_completed()
             main_job.progress_percentage = 100
             if not main_job.results:
                 main_job.results = {}
