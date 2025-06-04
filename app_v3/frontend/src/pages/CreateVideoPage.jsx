@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { assetService } from '../services/assetService';
 import { jobService } from '../services/jobService';
+import { generationService } from '../services/generationService';
 import { useScriptGeneration } from '../hooks/useScriptGeneration';
 import { ChevronLeftIcon, ChevronRightIcon, PlayIcon, SparklesIcon } from '@heroicons/react/24/outline';
 
@@ -416,7 +417,7 @@ const ScriptInput = ({ script, onScriptChange, selectedVoice }) => {
   );
 };
 
-const ReviewStep = ({ portrait, voice, script, onGenerate, isGenerating }) => {
+const ReviewStep = ({ portrait, voice, script, onGenerate, isGenerating, serviceMetadata }) => {
   return (
     <div className="space-y-6">
       <div>
@@ -464,6 +465,160 @@ const ReviewStep = ({ portrait, voice, script, onGenerate, isGenerating }) => {
         </div>
       )}
 
+      {/* Service Information */}
+      {serviceMetadata && (serviceMetadata.indexTTS || serviceMetadata.kdTalker) && (
+        <div className={`${
+          (serviceMetadata.indexTTS?.error || serviceMetadata.kdTalker?.error) 
+            ? 'bg-yellow-50 border-yellow-200' 
+            : 'bg-green-50 border-green-200'
+        } border rounded-lg p-4`}>
+          <h4 className={`font-medium mb-3 ${
+            (serviceMetadata.indexTTS?.error || serviceMetadata.kdTalker?.error)
+              ? 'text-yellow-900'
+              : 'text-green-900'
+          }`}>
+            🤖 AI Models & Hardware
+          </h4>
+          
+          {/* Show error state if any service has errors */}
+          {(serviceMetadata.indexTTS?.error || serviceMetadata.kdTalker?.error) && (
+            <div className="mb-3 p-2 bg-yellow-100 border border-yellow-300 rounded text-xs text-yellow-800">
+              ⚠️ Some services may be unavailable. Please check system status or try again later.
+            </div>
+          )}
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* TTS Service */}
+            <div className="space-y-1">
+              <h5 className={`text-sm font-medium ${
+                serviceMetadata.indexTTS?.error ? 'text-yellow-800' : 'text-green-800'
+              }`}>
+                Text-to-Speech (TTS)
+              </h5>
+              
+              {serviceMetadata.indexTTS?.error ? (
+                <div className="space-y-1">
+                  <p className="text-xs text-red-600">
+                    Status: {serviceMetadata.indexTTS.space_name}
+                  </p>
+                  <p className="text-xs text-red-500">
+                    {serviceMetadata.indexTTS.error}
+                  </p>
+                </div>
+              ) : serviceMetadata.indexTTS?.metadata_available ? (
+                <div className="space-y-1">
+                  <p className="text-xs text-green-700">
+                    Model: {serviceMetadata.indexTTS.space_url ? (
+                      <a 
+                        href={serviceMetadata.indexTTS.space_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-700 hover:text-blue-900 underline font-mono"
+                      >
+                        {serviceMetadata.indexTTS.space_name}
+                      </a>
+                    ) : (
+                      <span className="font-mono">{serviceMetadata.indexTTS.space_name}</span>
+                    )}
+                  </p>
+                  <p className="text-xs text-green-700">
+                    Hardware: {serviceMetadata.indexTTS.runtime?.hardware_friendly || serviceMetadata.indexTTS.runtime?.hardware || 'Unknown'}
+                  </p>
+                  {serviceMetadata.indexTTS.author && (
+                    <p className="text-xs text-green-600">
+                      Author: {serviceMetadata.indexTTS.author}
+                    </p>
+                  )}
+                  {serviceMetadata.indexTTS.sdk && (
+                    <p className="text-xs text-green-600">
+                      SDK: {serviceMetadata.indexTTS.sdk}
+                    </p>
+                  )}
+                  {serviceMetadata.indexTTS.last_modified && (
+                    <p className="text-xs text-green-600">
+                      Updated: {new Date(serviceMetadata.indexTTS.last_modified).toLocaleDateString()}
+                    </p>
+                  )}
+                  {(serviceMetadata.indexTTS.likes || serviceMetadata.indexTTS.downloads) && (
+                    <p className="text-xs text-green-600">
+                      {serviceMetadata.indexTTS.likes ? `❤️ ${serviceMetadata.indexTTS.likes}` : ''} 
+                      {serviceMetadata.indexTTS.likes && serviceMetadata.indexTTS.downloads ? ' • ' : ''}
+                      {serviceMetadata.indexTTS.downloads ? `⬇️ ${serviceMetadata.indexTTS.downloads}` : ''}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-600">Service information unavailable</p>
+              )}
+            </div>
+            
+            {/* Video Service */}
+            <div className="space-y-1">
+              <h5 className={`text-sm font-medium ${
+                serviceMetadata.kdTalker?.error ? 'text-yellow-800' : 'text-green-800'
+              }`}>
+                Video Generation
+              </h5>
+              
+              {serviceMetadata.kdTalker?.error ? (
+                <div className="space-y-1">
+                  <p className="text-xs text-red-600">
+                    Status: {serviceMetadata.kdTalker.space_name}
+                  </p>
+                  <p className="text-xs text-red-500">
+                    {serviceMetadata.kdTalker.error}
+                  </p>
+                </div>
+              ) : serviceMetadata.kdTalker?.metadata_available ? (
+                <div className="space-y-1">
+                  <p className="text-xs text-green-700">
+                    Model: {serviceMetadata.kdTalker.space_url ? (
+                      <a 
+                        href={serviceMetadata.kdTalker.space_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-700 hover:text-blue-900 underline font-mono"
+                      >
+                        {serviceMetadata.kdTalker.space_name}
+                      </a>
+                    ) : (
+                      <span className="font-mono">{serviceMetadata.kdTalker.space_name}</span>
+                    )}
+                  </p>
+                  <p className="text-xs text-green-700">
+                    Hardware: {serviceMetadata.kdTalker.runtime?.hardware_friendly || serviceMetadata.kdTalker.runtime?.hardware || 'Unknown'}
+                  </p>
+                  {serviceMetadata.kdTalker.author && (
+                    <p className="text-xs text-green-600">
+                      Author: {serviceMetadata.kdTalker.author}
+                    </p>
+                  )}
+                  {serviceMetadata.kdTalker.sdk && (
+                    <p className="text-xs text-green-600">
+                      SDK: {serviceMetadata.kdTalker.sdk}
+                    </p>
+                  )}
+                  {serviceMetadata.kdTalker.last_modified && (
+                    <p className="text-xs text-green-600">
+                      Updated: {new Date(serviceMetadata.kdTalker.last_modified).toLocaleDateString()}
+                    </p>
+                  )}
+                  {(serviceMetadata.kdTalker.likes || serviceMetadata.kdTalker.downloads) && (
+                    <p className="text-xs text-green-600">
+                      {serviceMetadata.kdTalker.likes ? `❤️ ${serviceMetadata.kdTalker.likes}` : ''} 
+                      {serviceMetadata.kdTalker.likes && serviceMetadata.kdTalker.downloads ? ' • ' : ''}
+                      {serviceMetadata.kdTalker.downloads ? `⬇️ ${serviceMetadata.kdTalker.downloads}` : ''}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-600">Service information unavailable</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h4 className="font-medium text-blue-900 mb-2">Estimated Generation Time</h4>
         <p className="text-sm text-blue-700">
@@ -503,6 +658,7 @@ const CreateVideoPage = () => {
   const [script, setScript] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedJob, setGeneratedJob] = useState(null);
+  const [serviceMetadata, setServiceMetadata] = useState({});
 
   const steps = [
     { id: 'portrait', title: 'Select Portrait' },
@@ -510,6 +666,109 @@ const CreateVideoPage = () => {
     { id: 'script', title: 'Write Script' },
     { id: 'review', title: 'Review & Generate' }
   ];
+
+  // Function to check service status and fetch metadata (unified with DashboardPage)
+  const checkServiceStatus = async () => {
+    console.log('🔍 Checking service status and metadata...');
+    
+    const checkService = async (serviceName, serviceCall) => {
+      try {
+        console.log(`🔧 Checking ${serviceName}...`);
+        const result = await serviceCall();
+        console.log(`✅ ${serviceName} response:`, result);
+        
+        // Handle different response formats
+        const isHealthy = result?.status === 'healthy' || 
+                         result?.status === 'connected' ||
+                         result?.redis_status === 'connected' ||
+                         result?.service === 'kdtalker' ||
+                         result?.service === 'indextts' ||
+                         result?.available === true;
+        
+        return { isHealthy, data: result };
+      } catch (error) {
+        console.error(`❌ ${serviceName} error:`, error);
+        console.error(`📊 ${serviceName} error details:`, {
+          message: error.message,
+          status: error.response?.status,
+          data: error.response?.data
+        });
+        
+        // If it's an auth error (401), assume service might be healthy but we can't check
+        if (error.response?.status === 401) {
+          console.warn(`🔒 ${serviceName} requires authentication - assuming unavailable for status display`);
+        }
+        
+        return { isHealthy: false, data: null, error: error.message };
+      }
+    };
+
+    try {
+      // Check services in parallel using generationService (same as DashboardPage)
+      const [videoResult, ttsResult] = await Promise.all([
+        checkService('Video (KdTalker)', () => generationService.getVideoStatus()),
+        checkService('TTS (IndexTTS)', () => generationService.getTTSStatus())
+      ]);
+      
+      // Build metadata in the same format as DashboardPage, but with additional fields for CreateVideoPage
+      const buildServiceMetadata = (result, serviceName) => {
+        if (!result.isHealthy || !result.data) {
+          return {
+            available: false,
+            metadata_available: false,
+            space_name: result.error ? 'Connection Error' : 'Service Unavailable',
+            error: result.error || 'Service not available'
+          };
+        }
+
+        const metadata = result.data.huggingface_metadata || {};
+        return {
+          available: result.isHealthy,
+          metadata_available: !!metadata.space_name,
+          space_name: metadata.space_name || 'Unknown',
+          space_url: metadata.space_url || null,
+          author: metadata.author || null,
+          sdk: metadata.sdk || null,
+          last_modified: metadata.last_modified || null,
+          created_at: metadata.created_at || null,
+          likes: metadata.likes || null,
+          downloads: metadata.downloads || null,
+          runtime: metadata.runtime || {}
+        };
+      };
+
+      const newMetadata = {
+        indexTTS: buildServiceMetadata(ttsResult, 'TTS'),
+        kdTalker: buildServiceMetadata(videoResult, 'Video')
+      };
+      
+      console.log('🏷️ Service metadata:', newMetadata);
+      setServiceMetadata(newMetadata);
+      
+    } catch (error) {
+      console.error('❌ Error checking service status:', error);
+      // Set both services as unavailable
+      setServiceMetadata({
+        indexTTS: {
+          available: false,
+          metadata_available: false,
+          space_name: 'System Error',
+          error: error.message
+        },
+        kdTalker: {
+          available: false,
+          metadata_available: false,
+          space_name: 'System Error',
+          error: error.message
+        }
+      });
+    }
+  };
+
+  // Load service metadata when component mounts
+  useEffect(() => {
+    checkServiceStatus();
+  }, []);
 
   const canProceed = () => {
     switch (currentStep) {
@@ -744,6 +1003,7 @@ const CreateVideoPage = () => {
               script={script}
               onGenerate={handleGenerate}
               isGenerating={isGenerating}
+              serviceMetadata={serviceMetadata}
             />
           </>
         )}

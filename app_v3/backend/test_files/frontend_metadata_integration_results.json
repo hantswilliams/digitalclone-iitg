@@ -1,0 +1,308 @@
+{
+  "test_timestamp": "2025-06-04T10:20:40.865215",
+  "test_script": "/Users/hantswilliams/Development/python/digitalclone-iitg/app_v3/backend/test_scripts_old/test_frontend_metadata_integration.py",
+  "tests": {
+    "structure_consistency": {
+      "indextts_structure": {
+        "space_name": false,
+        "space_url": false,
+        "metadata_available": false,
+        "space_id": false,
+        "author": false,
+        "created_at": false,
+        "last_modified": false,
+        "likes": false,
+        "downloads": false,
+        "sdk": false,
+        "runtime": false
+      },
+      "kdtalker_structure": {
+        "space_name": true,
+        "space_url": true,
+        "metadata_available": true,
+        "space_id": false,
+        "author": false,
+        "created_at": false,
+        "last_modified": false,
+        "likes": false,
+        "downloads": false,
+        "sdk": false,
+        "runtime": false
+      },
+      "consistency_check": {
+        "space_name": false,
+        "sdk": true,
+        "runtime": true,
+        "space_url": false,
+        "author": true,
+        "space_id": true,
+        "downloads": true,
+        "likes": true,
+        "last_modified": true,
+        "created_at": true,
+        "metadata_available": false
+      },
+      "missing_fields": {
+        "indextts": [
+          "space_name",
+          "space_url",
+          "metadata_available",
+          "space_id",
+          "author",
+          "created_at",
+          "last_modified",
+          "likes",
+          "downloads",
+          "sdk",
+          "runtime"
+        ],
+        "kdtalker": [
+          "space_id",
+          "author",
+          "created_at",
+          "last_modified",
+          "likes",
+          "downloads",
+          "sdk",
+          "runtime"
+        ]
+      },
+      "field_availability": {
+        "space_name": {
+          "indextts": false,
+          "kdtalker": true,
+          "both_services": false
+        },
+        "sdk": {
+          "indextts": false,
+          "kdtalker": false,
+          "both_services": false
+        },
+        "runtime": {
+          "indextts": false,
+          "kdtalker": false,
+          "both_services": false
+        },
+        "space_url": {
+          "indextts": false,
+          "kdtalker": true,
+          "both_services": false
+        },
+        "author": {
+          "indextts": false,
+          "kdtalker": false,
+          "both_services": false
+        },
+        "space_id": {
+          "indextts": false,
+          "kdtalker": false,
+          "both_services": false
+        },
+        "downloads": {
+          "indextts": false,
+          "kdtalker": false,
+          "both_services": false
+        },
+        "likes": {
+          "indextts": false,
+          "kdtalker": false,
+          "both_services": false
+        },
+        "last_modified": {
+          "indextts": false,
+          "kdtalker": false,
+          "both_services": false
+        },
+        "created_at": {
+          "indextts": false,
+          "kdtalker": false,
+          "both_services": false
+        },
+        "metadata_available": {
+          "indextts": false,
+          "kdtalker": true,
+          "both_services": false
+        }
+      }
+    },
+    "frontend_display_mapping": {
+      "dashboard_fields": [
+        "space_name",
+        "runtime.hardware_friendly",
+        "runtime.hardware",
+        "runtime.stage"
+      ],
+      "create_video_fields": [
+        "space_name",
+        "runtime.hardware_friendly",
+        "runtime.hardware"
+      ],
+      "not_displayed_fields": [
+        "space_url",
+        "author",
+        "created_at",
+        "last_modified",
+        "likes",
+        "downloads",
+        "sdk",
+        "space_id"
+      ],
+      "display_suggestions": {
+        "dashboard_additions": [
+          "author - as \"by [author]\" under model name",
+          "space_url - make model name clickable",
+          "sdk - show framework type",
+          "last_modified - show update recency"
+        ],
+        "create_video_additions": [
+          "space_url - make model name clickable for quick reference"
+        ],
+        "new_detailed_view": [
+          "All metadata fields in an expandable \"Model Details\" section",
+          "likes/downloads as community metrics",
+          "created_at for model age information"
+        ]
+      },
+      "priority_additions": [
+        {
+          "field": "space_url",
+          "display_as": "Clickable model name linking to HF space",
+          "location": "Both DashboardPage and CreateVideoPage",
+          "reasoning": "Provides direct access to model documentation"
+        },
+        {
+          "field": "author",
+          "display_as": "Model author/organization",
+          "location": "DashboardPage (detailed view)",
+          "reasoning": "Shows model provenance and credibility"
+        },
+        {
+          "field": "sdk",
+          "display_as": "Framework type (Gradio/Streamlit)",
+          "location": "DashboardPage (technical details)",
+          "reasoning": "Technical information for debugging"
+        },
+        {
+          "field": "last_modified",
+          "display_as": "Last updated date",
+          "location": "DashboardPage (detailed view)",
+          "reasoning": "Shows model freshness and maintenance status"
+        }
+      ]
+    },
+    "error_handling": {
+      "error_scenarios": [
+        {
+          "name": "API unavailable",
+          "metadata": {
+            "error": "HfApi not available",
+            "metadata_available": false
+          },
+          "expected_display": "Show \"Model info unavailable\" with basic service status"
+        },
+        {
+          "name": "Invalid space",
+          "metadata": {
+            "error": "404 Client Error",
+            "metadata_available": false
+          },
+          "expected_display": "Show \"Model not found\" with warning"
+        },
+        {
+          "name": "Partial metadata",
+          "metadata": {
+            "space_name": "test/model",
+            "metadata_available": true,
+            "runtime": {
+              "hardware": "unknown"
+            }
+          },
+          "expected_display": "Show available fields, fallback for missing ones"
+        },
+        {
+          "name": "Network timeout",
+          "metadata": {
+            "error": "Connection timeout",
+            "metadata_available": false
+          },
+          "expected_display": "Show \"Connection error\" with retry option"
+        }
+      ],
+      "frontend_handling_recommendations": [
+        "Always check metadata_available before accessing fields",
+        "Provide fallback values for missing fields (e.g., \"Unknown\" for hardware)",
+        "Show user-friendly error messages instead of raw error strings",
+        "Include retry mechanisms for network-related errors",
+        "Maintain service status indicators even when metadata fails",
+        "Log detailed errors to console while showing simple messages to users"
+      ],
+      "graceful_degradation": {
+        "level_1": "Full metadata available - show all details",
+        "level_2": "Partial metadata - show available fields with \"Unknown\" fallbacks",
+        "level_3": "No metadata but service running - show basic status only",
+        "level_4": "Service unavailable - show offline status with error context"
+      }
+    }
+  },
+  "sample_data": {
+    "indextts_metadata": {
+      "error": "Failed to initialize IndexTTS client: 401 Client Error. (Request ID: Root=1-68405639-3c1382c62e6ee6d0729ab77d;cb38b2f4-05fc-49dc-81ea-b85869ed3fb5)\n\nRepository Not Found for url: https://huggingface.co/api/spaces/hants/IndexTTS.\nPlease make sure you specified the correct `repo_id` and `repo_type`.\nIf you are trying to access a private or gated repo, make sure you are authenticated. For more details, see https://huggingface.co/docs/huggingface_hub/authentication\nInvalid username or password."
+    },
+    "kdtalker_metadata": {
+      "space_name": "hants/KDTalker",
+      "space_url": "https://huggingface.co/spaces/hants/KDTalker",
+      "metadata_available": false,
+      "error": "401 Client Error. (Request ID: Root=1-68405639-3d82541a122c02533ed1c6b4;0e522af8-8473-484e-9592-91f664df5657)\n\nRepository Not Found for url: https://huggingface.co/api/spaces/hants/KDTalker.\nPlease make sure you specified the correct `repo_id` and `repo_type`.\nIf you are trying to access a private or gated repo, make sure you are authenticated. For more details, see https://huggingface.co/docs/huggingface_hub/authentication\nInvalid username or password."
+    }
+  },
+  "recommendations": {
+    "immediate_improvements": [
+      {
+        "component": "DashboardPage.jsx",
+        "change": "Make space_name clickable linking to space_url",
+        "code_hint": "<a href={serviceMetadata.indexTTS.space_url} target=\"_blank\">{serviceMetadata.indexTTS.space_name}</a>",
+        "benefit": "Direct access to model documentation"
+      },
+      {
+        "component": "Both pages",
+        "change": "Add author display under model name",
+        "code_hint": "<p className=\"text-xs text-gray-500\">by {serviceMetadata.indexTTS.author}</p>",
+        "benefit": "Shows model provenance"
+      }
+    ],
+    "medium_term_improvements": [
+      {
+        "component": "DashboardPage.jsx",
+        "change": "Add expandable \"Model Details\" section",
+        "fields": [
+          "sdk",
+          "last_modified",
+          "created_at",
+          "likes",
+          "downloads"
+        ],
+        "benefit": "Comprehensive model information for power users"
+      },
+      {
+        "component": "New component",
+        "change": "Create ModelMetadataCard component",
+        "benefit": "Reusable metadata display across pages"
+      }
+    ],
+    "error_handling_improvements": [
+      {
+        "component": "Both pages",
+        "change": "Add proper error states for metadata failures",
+        "code_hint": "if (serviceMetadata.indexTTS?.error) { /* show error state */ }",
+        "benefit": "Better user experience during failures"
+      }
+    ]
+  },
+  "summary": {
+    "total_metadata_fields": 11,
+    "currently_displayed": 4,
+    "available_but_not_displayed": 8,
+    "display_coverage_percentage": 36.4,
+    "recommendations_count": 4
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "configuration": {
+    "valid": true,
+    "space_name": "hants/IndexTTS",
+    "has_hf_token": true,
+    "has_gradio_client": true,
+    "issues": []
+  },
+  "metadata": {
+    "space_name": "hants/IndexTTS",
+    "space_url": "https://huggingface.co/spaces/hants/IndexTTS",
+    "metadata_available": true,
+    "space_id": "hants/IndexTTS",
+    "author": "hants",
+    "created_at": "2025-05-28T15:20:27+00:00",
+    "last_modified": "2025-05-13T09:49:03+00:00",
+    "likes": 0,
+    "downloads": 0,
+    "sdk": "gradio",
+    "runtime": {
+      "stage": "RUNNING",
+      "hardware": "zero-a10g",
+      "hardware_display_name": "zero-a10g",
+      "hardware_friendly": "A10G GPU (Zero)"
+    }
+  },
+  "health_check": {
+    "status": "healthy",
+    "space_name": "hants/IndexTTS",
+    "endpoints_available": 2,
+    "note": "API is accessible and responding",
+    "huggingface_metadata": {
+      "space_name": "hants/IndexTTS",
+      "space_url": "https://huggingface.co/spaces/hants/IndexTTS",
+      "metadata_available": true,
+      "space_id": "hants/IndexTTS",
+      "author": "hants",
+      "created_at": "2025-05-28T15:20:27+00:00",
+      "last_modified": "2025-05-13T09:49:03+00:00",
+      "likes": 0,
+      "downloads": 0,
+      "sdk": "gradio",
+      "runtime": {
+        "stage": "RUNNING",
+        "hardware": "zero-a10g",
+        "hardware_display_name": "zero-a10g",
+        "hardware_friendly": "A10G GPU (Zero)"
+      }
+    }
+  },
+  "performance": {
+    "average_time": 0.09552833333333333
+  },
+  "test_timestamp": "2025-06-04T10:15:45.657257",
+  "test_script": "/Users/hantswilliams/Development/python/digitalclone-iitg/app_v3/backend/test_scripts_old/test_indextts_metadata.py"
+}

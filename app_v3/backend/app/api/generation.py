@@ -273,7 +273,9 @@ def tts_service_status():
         return jsonify({
             'service': 'indextts',
             'status': result['status'],
-            'details': result
+            'available': result['status'] == 'success',
+            'details': result,
+            'huggingface_metadata': result.get('health_check', {}).get('huggingface_metadata')
         }), 200
         
     except Exception as e:
@@ -475,7 +477,9 @@ def video_service_status():
         return jsonify({
             'service': 'kdtalker',
             'status': result['status'],
-            'details': result
+            'available': result['status'] == 'success',
+            'details': result,
+            'huggingface_metadata': result.get('health_check', {}).get('huggingface_metadata')
         }), 200
         
     except Exception as e:

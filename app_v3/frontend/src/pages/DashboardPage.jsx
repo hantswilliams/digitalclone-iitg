@@ -18,6 +18,10 @@ const DashboardPage = () => {
     indexTTS: false,
     celeryWorker: false
   });
+  const [serviceMetadata, setServiceMetadata] = useState({
+    kdTalker: null,
+    indexTTS: null
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -72,7 +76,7 @@ const DashboardPage = () => {
                          result?.service === 'indextts' ||
                          result?.available === true;
         
-        return isHealthy;
+        return { isHealthy, data: result };
       } catch (error) {
         console.error(`❌ ${serviceName} error:`, error);
         console.error(`📊 ${serviceName} error details:`, {
@@ -86,26 +90,34 @@ const DashboardPage = () => {
           console.warn(`🔒 ${serviceName} requires authentication - assuming unavailable for status display`);
         }
         
-        return false;
+        return { isHealthy: false, data: null };
       }
     };
 
     try {
       // Check all services in parallel
-      const [videoStatus, ttsStatus, workerStatus] = await Promise.all([
+      const [videoResult, ttsResult, workerResult] = await Promise.all([
         checkService('Video (KdTalker)', () => generationService.getVideoStatus()),
         checkService('TTS (IndexTTS)', () => generationService.getTTSStatus()),
         checkService('Worker Queue', () => generationService.getWorkerStatus())
       ]);
       
       const newStatus = {
-        kdTalker: videoStatus,
-        indexTTS: ttsStatus,
-        celeryWorker: workerStatus
+        kdTalker: videoResult.isHealthy,
+        indexTTS: ttsResult.isHealthy,
+        celeryWorker: workerResult.isHealthy
+      };
+      
+      // Extract and store metadata
+      const newMetadata = {
+        kdTalker: videoResult.data?.huggingface_metadata || null,
+        indexTTS: ttsResult.data?.huggingface_metadata || null
       };
       
       console.log('📊 Final system status:', newStatus);
+      console.log('🏷️ Service metadata:', newMetadata);
       setSystemStatus(newStatus);
+      setServiceMetadata(newMetadata);
       
     } catch (error) {
       console.error('❌ System status check failed:', error);
@@ -114,6 +126,10 @@ const DashboardPage = () => {
         kdTalker: false,
         indexTTS: false,
         celeryWorker: false
+      });
+      setServiceMetadata({
+        kdTalker: null,
+        indexTTS: null
       });
     }
   };
@@ -307,26 +323,135 @@ const DashboardPage = () => {
             <h2 className="text-lg font-medium text-gray-900">System Status</h2>
           </div>
           <div className="px-6 py-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">KdTalker Service (HuggingFace)</span>
-              <div className="flex items-center">
-                <div className={`w-2 h-2 rounded-full mr-2 ${systemStatus.kdTalker ? 'bg-green-400' : 'bg-red-400'}`}></div>
-                <span className={`text-sm ${systemStatus.kdTalker ? 'text-green-600' : 'text-red-600'}`}>
-                  {systemStatus.kdTalker ? 'Online' : 'Offline'}
-                </span>
+            {/* KDTalker Service */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">KdTalker Service (HuggingFace)</span>
+                <div className="flex items-center">
+                  <div className={`w-2 h-2 rounded-full mr-2 ${systemStatus.kdTalker ? 'bg-green-400' : 'bg-red-400'}`}></div>
+                  <span className={`text-sm ${systemStatus.kdTalker ? 'text-green-600' : 'text-red-600'}`}>
+                    {systemStatus.kdTalker ? 'Online' : 'Offline'}
+                  </span>
+                </div>
               </div>
+              {serviceMetadata.kdTalker && (
+                <div className="ml-4 space-y-1 text-xs text-gray-600">
+                  <div className="flex items-center justify-between">
+                    <span>Model:</span>
+                    {serviceMetadata.kdTalker.space_url ? (
+                      <a 
+                        href={serviceMetadata.kdTalker.space_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="font-mono text-blue-700 hover:text-blue-900 underline"
+                      >
+                        {serviceMetadata.kdTalker.space_name || 'Unknown'}
+                      </a>
+                    ) : (
+                      <span className="font-mono text-gray-800">{serviceMetadata.kdTalker.space_name || 'Unknown'}</span>
+                    )}
+                  </div>
+                  {serviceMetadata.kdTalker.author && (
+                    <div className="flex items-center justify-between">
+                      <span>Author:</span>
+                      <span className="font-medium text-gray-700">
+                        {serviceMetadata.kdTalker.author}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span>Hardware:</span>
+                    <span className="font-medium text-blue-600">
+                      {serviceMetadata.kdTalker.runtime?.hardware_friendly || serviceMetadata.kdTalker.runtime?.hardware || 'Unknown'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Status:</span>
+                    <span className={`font-medium ${serviceMetadata.kdTalker.runtime?.stage === 'RUNNING' ? 'text-green-600' : 'text-yellow-600'}`}>
+                      {serviceMetadata.kdTalker.runtime?.stage || 'Unknown'}
+                    </span>
+                  </div>
+                  {serviceMetadata.kdTalker.sdk && (
+                    <div className="flex items-center justify-between">
+                      <span>Framework:</span>
+                      <span className="font-medium text-purple-600 capitalize">
+                        {serviceMetadata.kdTalker.sdk}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">IndexTTS Service (HuggingFace)</span>
-              <div className="flex items-center">
-                <div className={`w-2 h-2 rounded-full mr-2 ${systemStatus.indexTTS ? 'bg-green-400' : 'bg-red-400'}`}></div>
-                <span className={`text-sm ${systemStatus.indexTTS ? 'text-green-600' : 'text-red-600'}`}>
-                  {systemStatus.indexTTS ? 'Online' : 'Offline'}
-                </span>
+            {/* IndexTTS Service */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">IndexTTS Service (HuggingFace)</span>
+                <div className="flex items-center">
+                  <div className={`w-2 h-2 rounded-full mr-2 ${systemStatus.indexTTS ? 'bg-green-400' : 'bg-red-400'}`}></div>
+                  <span className={`text-sm ${systemStatus.indexTTS ? 'text-green-600' : 'text-red-600'}`}>
+                    {systemStatus.indexTTS ? 'Online' : 'Offline'}
+                  </span>
+                </div>
               </div>
+              {serviceMetadata.indexTTS && (
+                <div className="ml-4 space-y-1 text-xs text-gray-600">
+                  <div className="flex items-center justify-between">
+                    <span>Model:</span>
+                    {serviceMetadata.indexTTS.space_url ? (
+                      <a 
+                        href={serviceMetadata.indexTTS.space_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="font-mono text-blue-700 hover:text-blue-900 underline"
+                      >
+                        {serviceMetadata.indexTTS.space_name || 'Unknown'}
+                      </a>
+                    ) : (
+                      <span className="font-mono text-gray-800">{serviceMetadata.indexTTS.space_name || 'Unknown'}</span>
+                    )}
+                  </div>
+                  {serviceMetadata.indexTTS.author && (
+                    <div className="flex items-center justify-between">
+                      <span>Author:</span>
+                      <span className="font-medium text-gray-700">
+                        {serviceMetadata.indexTTS.author}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span>Hardware:</span>
+                    <span className="font-medium text-blue-600">
+                      {serviceMetadata.indexTTS.runtime?.hardware_friendly || serviceMetadata.indexTTS.runtime?.hardware || 'Unknown'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Status:</span>
+                    <span className={`font-medium ${serviceMetadata.indexTTS.runtime?.stage === 'RUNNING' ? 'text-green-600' : 'text-yellow-600'}`}>
+                      {serviceMetadata.indexTTS.runtime?.stage || 'Unknown'}
+                    </span>
+                  </div>
+                  {serviceMetadata.indexTTS.sdk && (
+                    <div className="flex items-center justify-between">
+                      <span>Framework:</span>
+                      <span className="font-medium text-purple-600 capitalize">
+                        {serviceMetadata.indexTTS.sdk}
+                      </span>
+                    </div>
+                  )}
+                  {serviceMetadata.indexTTS.last_modified && (
+                    <div className="flex items-center justify-between">
+                      <span>Updated:</span>
+                      <span className="font-medium text-gray-500">
+                        {new Date(serviceMetadata.indexTTS.last_modified).toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
+            {/* Worker Queue */}
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-gray-700">Worker Queue (Redis and Celery)</span>
               <div className="flex items-center">

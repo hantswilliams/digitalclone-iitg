@@ -16,6 +16,11 @@ try:
     GRADIO_CLIENT_AVAILABLE = True
 except ImportError:
     GRADIO_CLIENT_AVAILABLE = False
+
+try:
+    from huggingface_hub import HfApi
+except ImportError:
+    HfApi = None
     
 logger = logging.getLogger(__name__)
 
@@ -62,6 +67,16 @@ class KDTalkerClient:
         self.client = None
         self.hf_token = os.getenv('HF_API_TOKEN')
         
+        # Initialize HfApi for metadata fetching
+        self.hf_api = None
+        if HfApi:
+            try:
+                self.hf_api = HfApi(token=self.hf_token)
+            except Exception as e:
+                logger.warning(f"Failed to initialize HfApi: {str(e)}")
+        else:
+            logger.warning("huggingface_hub package not available for metadata fetching")
+        
         if not self.hf_token:
             logger.warning("HF_API_TOKEN not found in environment variables")
         
@@ -86,7 +101,7 @@ class KDTalkerClient:
         Check if KDTalker service is available and responsive.
         
         Returns:
-            Dict containing health status and service information
+            Dict containing health status and service information including HF metadata
         """
         try:
             client = self._get_client()
@@ -97,22 +112,37 @@ class KDTalkerClient:
             _ = client.view_api()  # This checks if the space is accessible
             response_time = time.time() - start_time
             
-            return {
+            health_data = {
                 'status': 'healthy',
                 'service': 'kdtalker',
                 'space': self.space_name,
                 'response_time_ms': response_time * 1000,
                 'gradio_client': True
             }
+            
+            # Add Hugging Face metadata
+            hf_metadata = self.get_space_metadata()
+            health_data['huggingface_metadata'] = hf_metadata
+            
+            return health_data
                 
         except Exception as e:
-            return {
+            health_data = {
                 'status': 'error',
                 'service': 'kdtalker',
                 'error': str(e),
                 'space': self.space_name,
                 'gradio_client': True
             }
+            
+            # Try to add metadata even if health check failed
+            try:
+                hf_metadata = self.get_space_metadata()
+                health_data['huggingface_metadata'] = hf_metadata
+            except Exception:
+                pass  # Don't let metadata errors mask the main health check error
+            
+            return health_data
     
     def generate_video(
         self,
@@ -258,6 +288,72 @@ class KDTalkerClient:
         })
         
         return validation_result
+    
+    def get_space_metadata(self) -> Dict[str, Any]:
+        """
+        Fetch metadata about the Hugging Face space being used.
+        
+        Returns:
+            Dictionary containing space metadata including hardware info.
+        """
+        metadata = {
+            'space_name': self.space_name,
+            'space_url': f"https://huggingface.co/spaces/{self.space_name}",
+            'metadata_available': False
+        }
+        
+        if not self.hf_api:
+            metadata['error'] = 'HfApi not available'
+            return metadata
+        
+        try:
+            # Get space information
+            space_info = self.hf_api.space_info(self.space_name)
+            
+            metadata.update({
+                'metadata_available': True,
+                'space_id': space_info.id,
+                'author': space_info.author,
+                'created_at': space_info.created_at.isoformat() if space_info.created_at else None,
+                'last_modified': space_info.last_modified.isoformat() if space_info.last_modified else None,
+                'likes': getattr(space_info, 'likes', 0),
+                'downloads': getattr(space_info, 'downloads', 0),
+                'sdk': getattr(space_info, 'sdk', 'unknown'),
+                'runtime': {
+                    'stage': getattr(space_info.runtime, 'stage', 'unknown') if hasattr(space_info, 'runtime') and space_info.runtime else 'unknown',
+                    'hardware': getattr(space_info.runtime, 'hardware', 'unknown') if hasattr(space_info, 'runtime') and space_info.runtime else 'unknown'
+                }
+            })
+            
+            # Add hardware tier information if available
+            if hasattr(space_info, 'runtime') and space_info.runtime:
+                if hasattr(space_info.runtime, 'hardware'):
+                    hardware = space_info.runtime.hardware
+                    metadata['runtime']['hardware_display_name'] = hardware
+                    
+                    # Map hardware to user-friendly names
+                    hardware_mapping = {
+                        'cpu-basic': 'CPU Basic',
+                        'cpu-upgrade': 'CPU Upgrade',
+                        't4-small': 'T4 Small GPU',
+                        't4-medium': 'T4 Medium GPU',
+                        'a10g-small': 'A10G Small GPU',
+                        'a10g-large': 'A10G Large GPU',
+                        'a100-large': 'A100 Large GPU',
+                        'zero-a10g': 'A10G GPU (Zero)',
+                        'zero-a100': 'A100 GPU (Zero)',
+                        'zero-h100': 'H100 GPU (Zero)'
+                    }
+                    metadata['runtime']['hardware_friendly'] = hardware_mapping.get(hardware, hardware)
+            
+            logger.info(f"Fetched metadata for KDTalker space: {self.space_name}")
+            
+        except Exception as e:
+            error_msg = str(e)
+            metadata['error'] = error_msg
+            logger.warning(f"Failed to fetch space metadata for {self.space_name}: {error_msg}")
+        
+        return metadata
 
 
 # Convenience function for quick video generation

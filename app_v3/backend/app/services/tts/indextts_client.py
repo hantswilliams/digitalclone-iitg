@@ -17,6 +17,11 @@ except ImportError:
     Client = None
     handle_file = None
 
+try:
+    from huggingface_hub import HfApi
+except ImportError:
+    HfApi = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -48,6 +53,16 @@ class IndexTTSClient:
         
         self.hf_token = hf_token or self._get_config_value('HF_TOKEN') or self._get_config_value('HF_API_TOKEN')
         self.space_name = space_name or self._get_config_value('INDEXTTS_SPACE_NAME', 'hants/IndexTTS')
+        
+        # Initialize HfApi for metadata fetching
+        self.hf_api = None
+        if HfApi:
+            try:
+                self.hf_api = HfApi(token=self.hf_token)
+            except Exception as e:
+                logger.warning(f"Failed to initialize HfApi: {str(e)}")
+        else:
+            logger.warning("huggingface_hub package not available for metadata fetching")
         
         if not self.hf_token:
             logger.warning("No Hugging Face token provided. This may limit access to private spaces.")
@@ -190,46 +205,63 @@ class IndexTTSClient:
         Check if the IndexTTS API is accessible and responding.
         
         Returns:
-            Dictionary with health check status and details.
+            Dictionary with health check status and details including HF metadata.
         """
         try:
             # Try to access the client info to check connectivity
             if hasattr(self.client, 'endpoints'):
                 endpoints = self.client.endpoints
-                return {
+                health_data = {
                     'status': 'healthy',
                     'space_name': self.space_name,
                     'endpoints_available': len(endpoints) if endpoints else 0,
                     'note': 'API is accessible and responding'
                 }
             else:
-                return {
+                health_data = {
                     'status': 'healthy',
                     'space_name': self.space_name,
                     'note': 'API client initialized successfully'
                 }
             
+            # Add Hugging Face metadata
+            hf_metadata = self.get_space_metadata()
+            health_data['huggingface_metadata'] = hf_metadata
+            
+            return health_data
+            
         except Exception as e:
             error_msg = str(e)
+            health_data = None
+            
             if 'authentication' in error_msg.lower() or 'token' in error_msg.lower():
-                return {
+                health_data = {
                     'status': 'authentication_error',
                     'space_name': self.space_name,
                     'error': f"Authentication failed: {error_msg}"
                 }
             elif 'rate limit' in error_msg.lower() or 'quota' in error_msg.lower():
-                return {
+                health_data = {
                     'status': 'rate_limited',
                     'space_name': self.space_name,
-                    'error': f"Rate limit exceeded: {error_msg}"
+                    'error': f"Rate limited: {error_msg}"
                 }
             else:
-                return {
+                health_data = {
                     'status': 'unhealthy',
                     'space_name': self.space_name,
-                    'error': f"API error: {error_msg}"
+                    'error': f"Service unavailable: {error_msg}"
                 }
-    
+            
+            # Try to add metadata even if health check failed
+            try:
+                hf_metadata = self.get_space_metadata()
+                health_data['huggingface_metadata'] = hf_metadata
+            except Exception:
+                pass  # Don't let metadata errors mask the main health check error
+            
+            return health_data
+
     def validate_configuration(self) -> Dict[str, Any]:
         """
         Validate the client configuration.
@@ -255,6 +287,74 @@ class IndexTTSClient:
             'has_gradio_client': Client is not None,
             'issues': issues
         }
+    
+    def get_space_metadata(self) -> Dict[str, Any]:
+        """
+        Fetch metadata about the Hugging Face space being used.
+        
+        Returns:
+            Dictionary containing space metadata including hardware info.
+        """
+        metadata = {
+            'space_name': self.space_name,
+            'space_url': f"https://huggingface.co/spaces/{self.space_name}",
+            'metadata_available': False
+        }
+        
+        if not self.hf_api:
+            metadata['error'] = 'HfApi not available'
+            return metadata
+        
+        try:
+            # Get space information
+            space_info = self.hf_api.space_info(self.space_name)
+
+            print(f"DEBUGGING: Fetched space info for {self.space_name}: {space_info}")
+
+            metadata.update({
+                'metadata_available': True,
+                'space_id': space_info.id,
+                'author': space_info.author,
+                'created_at': space_info.created_at.isoformat() if space_info.created_at else None,
+                'last_modified': space_info.last_modified.isoformat() if space_info.last_modified else None,
+                'likes': getattr(space_info, 'likes', 0),
+                'downloads': getattr(space_info, 'downloads', 0),
+                'sdk': getattr(space_info, 'sdk', 'unknown'),
+                'runtime': {
+                    'stage': getattr(space_info.runtime, 'stage', 'unknown') if hasattr(space_info, 'runtime') and space_info.runtime else 'unknown',
+                    'hardware': getattr(space_info.runtime, 'hardware', 'unknown') if hasattr(space_info, 'runtime') and space_info.runtime else 'unknown'
+                }
+            })
+            
+            # Add hardware tier information if available
+            if hasattr(space_info, 'runtime') and space_info.runtime:
+                if hasattr(space_info.runtime, 'hardware'):
+                    hardware = space_info.runtime.hardware
+                    metadata['runtime']['hardware_display_name'] = hardware
+                    
+                    # Map hardware to user-friendly names
+                    hardware_mapping = {
+                        'cpu-basic': 'CPU Basic',
+                        'cpu-upgrade': 'CPU Upgrade',
+                        't4-small': 'T4 Small GPU',
+                        't4-medium': 'T4 Medium GPU',
+                        'a10g-small': 'A10G Small GPU',
+                        'a10g-large': 'A10G Large GPU',
+                        'a100-large': 'A100 Large GPU',
+                        'zero-a10g': 'A10G GPU (Zero)',
+                        'zero-a100': 'A100 GPU (Zero)',
+                        'zero-h100': 'H100 GPU (Zero)'
+                    }
+                    metadata['runtime']['hardware_friendly'] = hardware_mapping.get(hardware, hardware)
+            
+            logger.info(f"Fetched metadata for IndexTTS space: {self.space_name}")
+            
+        except Exception as e:
+            error_msg = str(e)
+            metadata['error'] = error_msg
+            logger.warning(f"Failed to fetch space metadata for {self.space_name}: {error_msg}")
+        
+        return metadata
 
 
 # Convenience function for quick access
