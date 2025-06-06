@@ -81,7 +81,7 @@ def create_app(config_class=Config):
         }), 401
     
     # Register blueprints
-    from .api import auth_bp, assets_bp, jobs_bp, generation_bp, export_bp, worker_bp
+    from .api import auth_bp, assets_bp, jobs_bp, generation_bp, export_bp, worker_bp, analytics_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(assets_bp, url_prefix='/api/assets')
@@ -89,6 +89,7 @@ def create_app(config_class=Config):
     app.register_blueprint(generation_bp, url_prefix='/api/generate')
     app.register_blueprint(export_bp, url_prefix='/api/export')
     app.register_blueprint(worker_bp, url_prefix='/api/worker')
+    app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
     
     # Health check endpoint
     @app.route('/health')
