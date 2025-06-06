@@ -3,7 +3,7 @@ import { authService } from '../services/authService';
 
 const TestLogin = ({ onLoginSuccess }) => {
   const [credentials, setCredentials] = useState({
-    email: 'demo@example.com',
+    email: 'test@example.com',
     password: 'TestPassword123!'
   });
   const [loading, setLoading] = useState(false);
@@ -34,7 +34,7 @@ const TestLogin = ({ onLoginSuccess }) => {
     
     if (onLoginSuccess) {
       onLoginSuccess({
-        email: 'demo@example.com',
+        email: 'test@example.com',
         username: 'demouser',
         first_name: 'Demo',
         last_name: 'User'

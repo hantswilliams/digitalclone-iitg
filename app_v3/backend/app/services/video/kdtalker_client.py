@@ -47,14 +47,14 @@ class KDTalkerClient:
     def __init__(
         self,
         space_name: Optional[str] = None,
-        timeout: int = 300
+        timeout: int = 600  # Default to 10 minutes for video generation
     ):
         """
         Initialize KDTalker client.
         
         Args:
-            space_name: Hugging Face Space name (defaults to env var KDTALKER_SPACE or "fffiloni/KDTalker")
-            timeout: Request timeout in seconds (default: 5 minutes for video generation)
+            space_name: Hugging Face Space name (defaults to env var KDTALKER_SPACE or "hants/KDTalker")
+            timeout: Request timeout in seconds (default: 10 minutes for video generation)
         """
         if not GRADIO_CLIENT_AVAILABLE:
             raise ImportError(

@@ -7,7 +7,7 @@ const LoginPage = () => {
   const { login, isLoading, error, clearError } = useAuth();
   
   const [formData, setFormData] = useState({
-    email: 'demo@example.com',
+    email: 'test@example.com',
     password: 'TestPassword123!',
     rememberMe: false,
   });
@@ -201,7 +201,7 @@ const LoginPage = () => {
               type="button"
               onClick={() => {
                 setFormData({
-                  email: 'demo@example.com',
+                  email: 'test@example.com',
                   password: 'TestPassword123!',
                   rememberMe: false
                 });
