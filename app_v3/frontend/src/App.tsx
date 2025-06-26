@@ -14,6 +14,7 @@ import CreateVideoPage from './pages/CreateVideoPage';
 import CreateAudioPage from './pages/CreateAudioPage';
 import RecordAudioPage from './pages/RecordAudioPage';
 import CapturePortraitPage from './pages/CapturePortraitPage';
+import AnalyticsPage from './pages/AnalyticsPage';
 
 function App() {
 
@@ -104,6 +105,14 @@ function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <CreateVideoPage />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/analytics" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <AnalyticsPage />
                 </AppLayout>
               </ProtectedRoute>
             } />
